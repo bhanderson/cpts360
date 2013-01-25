@@ -1,9 +1,15 @@
 # Object files
 *.o
+*.cbp
+*.save
+*.depend
+*.layout
 
 # Libraries
 *.lib
 *.a
+bin\
+obj\
 
 # Shared objects (inc. Windows DLLs)
 *.dll
