@@ -17,9 +17,11 @@ int insert(char name[64], char type, Node *parent);
 int commandId(void);
 int mkdir(char p[64]);
 int makedir(char p[64]);
+int ls(Node *leaf);
 
 Node *root, *pwd;
 char input[128], command[16], pathname[64],	dirname[64], basename[64];
+//char *input, *command, *pathname, *dirname, *basename;
 char *token, *context;
 
 int main(){
@@ -28,18 +30,11 @@ int main(){
 
 	while (1)
 	{
-		strcpy(input,"");
-		strcpy(command,"");
-		strcpy(pathname,"");
-		printf("Enter a command (q to quit): ");
-
-		gets(input);
-		if(strcmp(input,"q")==0||strcmp(input,"quit")==0) return EXIT_SUCCESS;
-		if(input[0] != '\0'){
-			strcpy(command,strtok(input, " "));
-			strcpy(pathname,strtok(NULL, " "));
-		}
-		printf("Command: %s \n", command);
+		*input = "";
+		*command = "";
+		*pathname = "";
+		if(commandline() == 1)
+			return 0;
 		id = commandId();
 		switch(id){
 			case 0: //mkdir
@@ -50,6 +45,7 @@ int main(){
 			case 2: //cd
 				break;
 			case 3: //ls
+				ls(root);
 				break;
 			case 4: //pwd
 				break;
@@ -70,6 +66,23 @@ int main(){
 	}
 	return 0;
 }
+int commandline(void){
+
+	printf("Enter a command (q to quit): ");
+	gets(input);
+	if(strcmp(input,"q")==0||strcmp(input,"quit")==0) return 1;
+	if(input[0] != '\0'){
+		//*command = strtok(input, " ");
+		strcpy(command,strtok(input, " "));
+		if(input != NULL)
+			strcpy(pathname,strtok(NULL, " "));
+	}
+	printf("Command: %s \n", command);
+	printf("Pathname: %s \n", pathname);
+	printf("input: %s \n", input);
+	return 0;
+}
+
 
 void init(void){
 	root = (Node *)malloc(sizeof(Node));
@@ -85,6 +98,8 @@ int insert(char name[64], char type, Node *parent){
 	inserted->type = type;
 	strcpy(inserted->name, name);
 	inserted->parentPtr = parent;
+	inserted->childPtr = 0;
+	inserted->siblingPtr = 0;
 	return 0;
 }
 
@@ -103,6 +118,7 @@ Node *search(Node *current_node, char name[64]){
 	return 0;
 
 }
+
 
 int commandId(void){
 	if(strcmp(command,"mkdir")==0)
@@ -123,7 +139,7 @@ int commandId(void){
 		return 7;
 	if(strcmp(command,"reload"))
 		return 8;
-	if(strcmp(command,"quit"))
+	if(strcmp(command,"quit")||strcmp(command,"q"))
 		return 9;
 	return -1;
 }
@@ -161,5 +177,14 @@ int makedir(char p[64]){
 		cwd = search(root, path);
 	}
 
+	return 0;
+}
+
+int ls(Node *leaf){
+	if(leaf!=0){
+		printf(leaf->name);
+		ls(leaf->childPtr);
+		ls(leaf->siblingPtr);
+	}
 	return 0;
 }
