@@ -13,10 +13,9 @@ node *root, *pwd;
 char input[128], command[64], pathname[64], dirname[64], basename[64];
 
 
-int readinput(void);
 int findCommand(char com[64]);
 void init(void);
-node *mkdir(char *n);
+node *mkdir(char *n, char t, node *cwd);
 node *cd(char *n, node *cwd);
 void ls(node *cwd);
 void pwdir(void);
@@ -31,16 +30,17 @@ int main() {
 		pwdir();
 		printf(" $ ");
 
-        readinputplex();
+		readinputplex();
+
         switch (findCommand(command)) {
         case 0:
-            mkdir(basename);
+            mkdir(strcat(basename,dirname), 'D',pwd);
             break;
         case 1:
             ls(pwd->childPtr);
             break;
         case 2:
-            cd(basename,pwd->childPtr);
+			if(cd(basename,pwd->childPtr)!=-1) pwd = cd(basename,pwd->childPtr);
             break;
         case 3:
             pwdir();
@@ -64,7 +64,7 @@ int main() {
 void init(void) {
     char r[10] = "/";
     root = (node *)malloc(sizeof(node));
-    root->type='d';
+    root->type='D';
     strcpy(root->name,r);
     root->siblingPtr=0;
     root->childPtr=0;
@@ -72,29 +72,62 @@ void init(void) {
     pwd = root;
 }
 
-node *mkdir(char *n) {
-    node *child;
-    child = (node *)malloc(sizeof(node));
-    strncpy(child->name,n,64);
-    child->type='d';
-    child->siblingPtr=pwd->childPtr;
-    child->childPtr=0;
-	child->parentPtr=pwd;
-    pwd->childPtr = child;
-    return pwd->childPtr;
+node *mkdir(char *n, char t, node *cwd) {
+	if(strchr(n,'/')==NULL){// if there is a NOT / in the input
+		node *child;
+		child = (node *)malloc(sizeof(node));
+		strncpy(child->name,n,64);
+		child->type='D';
+		child->siblingPtr=pwd->childPtr;
+		child->childPtr=0;
+		child->parentPtr=pwd;
+		cwd->childPtr = child;
+		return pwd->childPtr;
+	}
+
+	// if there IS a / in the input
+
+	char *token;
+	node *temp;
+	token = strtok(dirname,"/");
+	printf("Token: %s",token);
+	while(token!=NULL)
+	{
+		temp = cd(token, cwd);
+		if(temp=-1)
+		{
+			cwd = mkdir(token, 'D',cwd);
+			token = strtok(NULL,"/");
+		}
+
+		//token = strtok(dirname,"/");
+
+	}
+	return cwd;
+
 }
 
 node *cd(char *n,node *cwd) {
+	if(*n==0)
+	{
+		cwd=root;
+		return cwd;
+	}
+
     while(cwd!=0) {
+    	if(cwd->type!='D')
+    	{
+    		printf("Error not a directory!\n");
+    		return pwd;
+    	}
         if(strncmp(cwd->name,n,64)==0) {
-            pwd = cwd;
             return cwd;
         } else {
             cwd = cwd->siblingPtr;
         }
     }
-    printf("Error directory not found\n");
-    return 0;
+    //printf("Error directory not found\n");
+    return -1;
 }
 
 void ls(node *cwd) {
@@ -107,27 +140,6 @@ void ls(node *cwd) {
     printf("\n");
 
 
-}
-
-int readinput() {
-    char *token;
-    fgets(input, 128, stdin);
-    token = strtok(input," \n");
-    /*if(strchr(input,'/')!=NULL)
-    {
-    	readinputplex();
-    	return;
-    }*/
-    if(token != NULL)
-        strncpy(command, token, 64);
-    while (token!=NULL) {
-        //printf("%s ", token);
-        token = strtok(NULL, " \n");
-        if(token!=NULL)
-            strncpy(basename, token, 64);
-
-    }
-    return 0;
 }
 
 int findCommand(char com[64]) {
@@ -217,47 +229,43 @@ void rm(node *child){
 		free(child);
 	}
 }
-void readinputplex(void)
+
+void readinputplex()
 {
-	char *token;
-    fgets(input, 128, stdin);
-    if(strchr(input,'/')!=NULL)//if path extract basename dirname and pathname
-    {
-    	char *cmd;
-		int pos;
-		cmd=strchr(input,' ');
+	char *token, *dir;
+	memset(&input[0],0,sizeof(input));
+	memset(&pathname[0],0,sizeof(pathname));
+	memset(&dirname[0],0,sizeof(dirname));
+	memset(&basename[0],0,sizeof(basename));
 
-		pos=cmd-input;
-		if(pos<0)
+
+	fgets(input, 128, stdin);
+	token = strtok(input, " \n/");
+	if(token!=NULL)
+	{
+		strcpy(command,token);
+	}
+	token = strtok(NULL, " \n");
+	if(memchr(input,'/',128)!=NULL){// if there is a / in the input
+		if(token!=NULL) dir = strrchr(token,'/')+1;
+		if(dir!=NULL && token!=NULL)
 		{
-			printf("invalid command");
-			return -1;
+			strcpy(basename, dir);
 		}
-		strncpy(command, input,pos);
+		while(token!=NULL) // TODO: change dirname to dirname - basename
+		{
+			strcpy(pathname,token);
+			strncpy(dirname,pathname,strlen(pathname)-strlen(basename));
+			token = strtok(NULL, "\n");
+		}
+		printf("Pathname: %s\n",pathname);
+		printf("Dirname: %s\n",dirname);
+		printf("Basename: %s\n",basename);
 
-
-    	char *laslash = strrchr(input, '/');
-		int b = strlen(input)-(laslash-input);
-		char *temp;
-		strncpy(basename,laslash+1,b-2); // basename done
-
-
-
-    	return;
-    }
-
-    token = strtok(input," \n");
-    if(token != NULL)
-        strncpy(command, token, 64);
-    while (token!=NULL) {
-        token = strtok(NULL, " \n");
-        if(token!=NULL)
-            strncpy(basename, token, 64);
-
-    }
-    return 0;
-
-
-
-
+		return;
+	}
+	if(token!=NULL){
+		strcpy(basename, token);
+	}
+	return;
 }
