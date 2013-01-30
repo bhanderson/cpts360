@@ -11,6 +11,8 @@ typedef struct node {
 
 node *root, *pwd;
 char input[128], command[64], pathname[64], dirname[64], basename[64];
+
+
 int readinput(void);
 int findCommand(char com[64]);
 void init(void);
@@ -19,6 +21,8 @@ node *cd(char *n, node *cwd);
 void ls(node *cwd);
 void pwdir(void);
 int rmdir(char n[64]);
+void rm(node *child);
+void readinputplex(void);
 
 int main() {
     init();
@@ -27,22 +31,22 @@ int main() {
 		pwdir();
 		printf(" $ ");
 
-        readinput();
+        readinputplex();
         switch (findCommand(command)) {
         case 0:
-            mkdir(dirname);
+            mkdir(basename);
             break;
         case 1:
             ls(pwd->childPtr);
             break;
         case 2:
-            cd(dirname,pwd->childPtr);
+            cd(basename,pwd->childPtr);
             break;
         case 3:
             pwdir();
             break;
         case 4:
-			rmdir(dirname);
+			rmdir(basename);
             break;
         case 9:
             return 0;
@@ -95,7 +99,7 @@ node *cd(char *n,node *cwd) {
 
 void ls(node *cwd) {
     if(cwd==0)
-        printf("nothing to be found here\n");
+        return;
     while(cwd != 0) {
         printf("%s ", cwd->name);
         cwd = cwd->siblingPtr;
@@ -107,16 +111,20 @@ void ls(node *cwd) {
 
 int readinput() {
     char *token;
-
     fgets(input, 128, stdin);
     token = strtok(input," \n");
+    /*if(strchr(input,'/')!=NULL)
+    {
+    	readinputplex();
+    	return;
+    }*/
     if(token != NULL)
         strncpy(command, token, 64);
     while (token!=NULL) {
         //printf("%s ", token);
         token = strtok(NULL, " \n");
         if(token!=NULL)
-            strncpy(dirname, token, 64);
+            strncpy(basename, token, 64);
 
     }
     return 0;
@@ -139,11 +147,14 @@ int findCommand(char com[64]) {
         //printf("PWD\n");
         return 3;
     }
+    if(strncmp(com,"rmdir",64)==0){
+		return 4;
+    }
     if(strncmp(com,"?",64)==0) {
         //printf("\t======================help============================\n\tmkdir ls q ?\n");
         return 8;
     }
-    if(strncmp(com,"q",64)==0) {
+    if(strncmp(com,"q",64)==0 ||strncmp(com,"quit",64)==0 ||strncmp(com,"exit",64)==0) {
         printf("QUIT\n");
         return 9;
     }
@@ -164,22 +175,89 @@ void pwdir() {
 		cwd = cwd->parentPtr;
 	}
 
-	strrev(c);
+//	strrev(c);
 	printf(c);
 }
 
 int rmdir(char n[64]){
-	//node *dir = find(n,root);
-	return 0;
+	if(pwd->childPtr==0)
+	{
+		printf("Cannot find that directory\n");
+		return -1;
+	}
+	node * cwd = pwd->childPtr;
+	if(strncmp(cwd->name,n,64)==0){//if the first value is the rmdir
+		pwd->childPtr=cwd->siblingPtr;
+		free(cwd->childPtr);
+		return 0;
+	}
+	while(cwd->siblingPtr!=0)			// check to see if no more siblings
+	{
+		if(strncmp(cwd->siblingPtr->name,n,64)==0)
+		{
+			node *temp;
+			temp = cwd->siblingPtr->siblingPtr;
+			free(cwd->siblingPtr);
+			cwd->siblingPtr=temp;
+			if(temp!=0)
+				rm(temp->childPtr);
+			free(temp);
+			return 0;
+		}
+		cwd=cwd->siblingPtr;
+	}
+	printf("Cannot find that directory\n");
+	return -1;
+}
+
+void rm(node *child){
+	if(child!=0){
+		rm(child->siblingPtr);
+		rm(child->childPtr);
+		free(child);
+	}
+}
+void readinputplex(void)
+{
+	char *token;
+    fgets(input, 128, stdin);
+    if(strchr(input,'/')!=NULL)//if path extract basename dirname and pathname
+    {
+    	char *cmd;
+		int pos;
+		cmd=strchr(input,' ');
+
+		pos=cmd-input;
+		if(pos<0)
+		{
+			printf("invalid command");
+			return -1;
+		}
+		strncpy(command, input,pos);
+
+
+    	char *laslash = strrchr(input, '/');
+		int b = strlen(input)-(laslash-input);
+		char *temp;
+		strncpy(basename,laslash+1,b-2); // basename done
+
+
+
+    	return;
+    }
+
+    token = strtok(input," \n");
+    if(token != NULL)
+        strncpy(command, token, 64);
+    while (token!=NULL) {
+        token = strtok(NULL, " \n");
+        if(token!=NULL)
+            strncpy(basename, token, 64);
+
+    }
+    return 0;
+
+
+
 
 }
-/*
-node *find(char n[64], node *cwd){
-	if(strncmp(cwd->name,n,64)==0)
-		return cwd;
-	if(cwd->childPtr != 0)
-		find(n,cwd->childPtr);
-	if(cwd->siblingPtr != 0)
-		find(n,cwd->siblingPtr);
-
-}*/
