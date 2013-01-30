@@ -2,8 +2,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 typedef struct node {
-    struct node *siblingPtr, *childPtr;
+    struct node *siblingPtr, *childPtr, *parentPtr;
     char type;
     char name[64];
 } node;
@@ -17,10 +18,15 @@ node *mkdir(char *n);
 node *cd(char *n, node *cwd);
 void ls(node *cwd);
 void pwdir(void);
+int rmdir(char n[64]);
 
 int main() {
     init();
     while(1) {
+		printf("user@shell ");
+		pwdir();
+		printf(" $ ");
+
         readinput();
         switch (findCommand(command)) {
         case 0:
@@ -36,6 +42,7 @@ int main() {
             pwdir();
             break;
         case 4:
+			rmdir(dirname);
             break;
         case 9:
             return 0;
@@ -51,12 +58,13 @@ int main() {
 }
 
 void init(void) {
-    char r[10] = "root";
+    char r[10] = "/";
     root = (node *)malloc(sizeof(node));
     root->type='d';
     strcpy(root->name,r);
     root->siblingPtr=0;
     root->childPtr=0;
+	root->parentPtr=0;
     pwd = root;
 }
 
@@ -67,6 +75,7 @@ node *mkdir(char *n) {
     child->type='d';
     child->siblingPtr=pwd->childPtr;
     child->childPtr=0;
+	child->parentPtr=pwd;
     pwd->childPtr = child;
     return pwd->childPtr;
 }
@@ -145,8 +154,32 @@ int findCommand(char com[64]) {
 }
 
 void pwdir() {
-    printf("%s\n",pwd->name);
+    node *cwd=pwd;
+	char c[128] ="";
+	if(pwd==root)strcat(c,"/");
+	while(cwd !=root){
+
+		strcat(c,cwd->name);
+		strcat(c,"/");
+		cwd = cwd->parentPtr;
+	}
+
+	strrev(c);
+	printf(c);
 }
 
+int rmdir(char n[64]){
+	//node *dir = find(n,root);
+	return 0;
 
+}
+/*
+node *find(char n[64], node *cwd){
+	if(strncmp(cwd->name,n,64)==0)
+		return cwd;
+	if(cwd->childPtr != 0)
+		find(n,cwd->childPtr);
+	if(cwd->siblingPtr != 0)
+		find(n,cwd->siblingPtr);
 
+}*/
