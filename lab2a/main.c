@@ -27,7 +27,7 @@ void save(char *n, node *cwd);
 void reverse(char *c);
 
 int main() {
-	char temp[128];
+    char temp[128];
     init();
     while(1) {
         printf("user@shell ");
@@ -38,15 +38,17 @@ int main() {
 
         switch (findCommand(command)) {
         case 0:
-			strcpy(temp,basename);
-			strcat(temp,dirname);
+            strcpy(temp,basename);
+            strcat(temp,dirname);
             mkdir(temp, 'D',pwd);
             break;
         case 1:
             ls(pwd->childPtr);
             break;
         case 2:
-            if(cd(basename,pwd->childPtr)!=-1) pwd = cd(basename,pwd->childPtr);
+			strcpy(temp,dirname);
+			strcat(temp,basename);
+            if(cd(basename,pwd->childPtr)!=-1) pwd = cd(temp,pwd->childPtr);
             break;
         case 3:
             pwdir(pwd);
@@ -54,11 +56,11 @@ int main() {
         case 4:
             rmdir(basename);
             break;
-		case 5:
-			fp = fopen(basename, "w+");
-			save(basename,root);
-			fclose(fp);
-			break;
+        case 5:
+            fp = fopen(basename, "w+");
+            save(basename,root);
+            fclose(fp);
+            break;
         case 9:
             return 0;
             break;
@@ -102,17 +104,17 @@ node *mkdir(char *n, char t, node *cwd) {
     node *temp;
     token = strtok(pathname,"/");
     while(token!=NULL) {
-    	printf("Token: %s \n",token);
-    	if(strcmp(token,basename)==0){
-    		mkdir(token,'D',cwd);
-    		return cwd;
-		}
-    	cwd = cd(token,cwd->childPtr);
-    	if(cwd==0||cwd==-1){
-			printf("Directory doesnt exist\n");
-			return cwd;
-    	}
-    	token =strtok(NULL, "/\n");
+        printf("Token: %s \n",token);
+        if(strcmp(token,basename)==0) {
+            mkdir(token,'D',cwd);
+            return cwd;
+        }
+        cwd = cd(token,cwd->childPtr);
+        if(cwd==0||cwd==-1) {
+            printf("Directory doesnt exist\n");
+            return cwd;
+        }
+        token =strtok(NULL, "/\n");
     }
     mkdir(basename,'D',cwd);
     return cwd;
@@ -124,6 +126,26 @@ node *cd(char *n,node *cwd) {
         cwd=root;
         return cwd;
     }
+    if(strchr(n,'/')!=NULL) { //if there is a /
+        char *token;
+        token = strtok(n,"/");
+        while(token!=NULL) {
+            while(cwd!=0) {
+                if(cwd->type!='D') {
+                    printf("Error not a directory!\n");
+                    return pwd;
+                }
+                if(strncmp(cwd->name,token,64)==0) {
+                    return cwd;
+                } else {
+                    cwd = cwd->siblingPtr;
+                }
+            }
+            token=strtok(NULL,"/\n");
+		}
+		return -1;
+	}
+
 
     while(cwd!=0) {
         if(cwd->type!='D') {
@@ -173,7 +195,7 @@ int findCommand(char com[64]) {
         return 4;
     }
     if(strncmp(com,"save",64)==0) {
-		return 5;
+        return 5;
     }
     if(strncmp(com,"?",64)==0) {
         //printf("\t======================help============================\n\tmkdir ls q ?\n");
@@ -201,19 +223,19 @@ char *pwdir(node *cwd) {
     }
 
 //	strrev(c);
-	reverse(c);
+    reverse(c);
 //    printf(c);
     return c;
 }
 
-void reverse(char *c){
-	int len = strlen(c);
-	int h, i, j;
-	for(i=0, j=len-1;i<j; i++,j--){
-		h = c[i];
-		c[i]=c[j];
-		c[j]=h;
-	}
+void reverse(char *c) {
+    int len = strlen(c);
+    int h, i, j;
+    for(i=0, j=len-1; i<j; i++,j--) {
+        h = c[i];
+        c[i]=c[j];
+        c[j]=h;
+    }
 }
 
 int rmdir(char n[64]) {
@@ -288,20 +310,20 @@ void readinputplex() {
     return;
 }
 
-void save(char *filename, node *cwd){
-	if(cwd!=0){
-		fputs(pwdir(cwd),fp);
-	}
-	if(cwd->siblingPtr!=0){
+void save(char *filename, node *cwd) {
+    if(cwd!=0) {
+        fputs(pwdir(cwd),fp);
+    }
+    if(cwd->siblingPtr!=0) {
 
-		save(filename, cwd->siblingPtr);
-	}
-	if(cwd->childPtr!=0){
-		fputs("\n",fp);
-		save(filename, cwd->childPtr);
+        save(filename, cwd->siblingPtr);
+    }
+    if(cwd->childPtr!=0) {
+        fputs("\n",fp);
+        save(filename, cwd->childPtr);
 
-	}
+    }
 
 
 
- }
+}
