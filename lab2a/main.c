@@ -25,14 +25,15 @@ void rm(node *child);
 void readinputplex(void);
 void save(char *n, node *cwd);
 void reverse(char *c);
+void create(char c[128]);
 
 int main() {
     char temp[128];
     node *tempPtr;
     init();
     while(1) {
-    	strcpy(temp, pwdir(pwd));
-        printf("user@shell %s $", temp);
+
+        printf("user@shell$");
         //pwdir(pwd);
         //printf(" $ ");
 
@@ -48,7 +49,6 @@ int main() {
             ls(pwd->childPtr);
             break;
         case 2:
-
 			if(strchr(pathname,'/')!=0&&root->childPtr!=0){
 				pwd = cd(pathname,root->childPtr);
 				break;
@@ -66,6 +66,16 @@ int main() {
             save(basename,root);
             fclose(fp);
             break;
+		case 6:
+			if(strchr(pathname,'/')==NULL){// / not found
+				create(basename);
+				break;
+			}
+			create(pathname);
+			break;
+		case 7:
+			rmdir(basename);
+			break;
         case 9:
             return 0;
             break;
@@ -95,7 +105,7 @@ node *mkdir(char *n, char t, node *cwd) {
         node *child;
         child = (node *)malloc(sizeof(node));
         strncpy(child->name,n,64);
-        child->type='D';
+        child->type=t;
         child->siblingPtr=cwd->childPtr;
         child->childPtr=0;
         child->parentPtr=pwd;
@@ -111,7 +121,7 @@ node *mkdir(char *n, char t, node *cwd) {
     while(token!=NULL) {
         printf("Token: %s \n",token);
         if(strcmp(token,basename)==0) {
-            mkdir(token,'D',cwd);
+            mkdir(token,t,cwd);
             return cwd;
         }
         cwd = cd(token,cwd->childPtr);
@@ -121,7 +131,7 @@ node *mkdir(char *n, char t, node *cwd) {
         }
         token =strtok(NULL, "/\n");
     }
-    mkdir(basename,'D',cwd);
+    mkdir(basename,t,cwd);
     return cwd;
 
 }
@@ -149,7 +159,9 @@ node *cd(char *n,node *cwd) {
             }
             token=strtok(NULL,"/\n");
 		}
-		return cwd->parentPtr;
+		if(cwd!=root)
+			return cwd->parentPtr;
+		return pwd;
 	}
 
 
@@ -164,8 +176,8 @@ node *cd(char *n,node *cwd) {
             cwd = cwd->siblingPtr;
         }
     }
-    //printf("Error directory not found\n");
-    return -1;
+    printf("Error directory not found\n");
+    return pwd;
 
 }
 
@@ -219,8 +231,14 @@ int findCommand(char com[64]) {
     if(strncmp(com,"save",64)==0) {
         return 5;
     }
+    if(strncmp(com,"create",64)==0){
+    	return 6;
+    }
+    if(strncmp(com,"rm",64)==0){
+    	return 7;
+    }
     if(strncmp(com,"?",64)==0) {
-        //printf("\t======================help============================\n\tmkdir ls q ?\n");
+        printf("The commands are: mkdir ls rmdir cd pwd rmdir save create ? \n");
         return 8;
     }
     if(strncmp(com,"q",64)==0 ||strncmp(com,"quit",64)==0 ||strncmp(com,"exit",64)==0) {
@@ -246,7 +264,7 @@ char *pwdir(node *cwd) {
 
 //	strrev(c);
     reverse(c);
-//    printf(c);
+    printf("%s\n",c);
     return c;
 }
 
@@ -334,21 +352,25 @@ void readinputplex() {
 
 void save(char *filename, node *cwd) {
     if(cwd!=0) {
-        fputs(pwdir(cwd),fp);
-        fputs("\n",fp);
+    	fputs(&cwd->type,fp);
+    	fputs(" ",fp);
+    	fputs(pwdir(cwd),fp);
     }
     if(cwd->siblingPtr!=0) {
-
+		fputs("\n",fp);
         save(filename, cwd->siblingPtr);
+        return;
     }
     if(cwd->childPtr!=0) {
         fputs("\n",fp);
         save(filename, cwd->childPtr);
-
     }
 return;
 
 
 }
 
+void create(char c[128]){
+	mkdir(c, 'F', pwd);
+}
 /*eof*/
