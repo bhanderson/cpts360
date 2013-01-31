@@ -28,11 +28,13 @@ void reverse(char *c);
 
 int main() {
     char temp[128];
+    node *tempPtr;
     init();
     while(1) {
-        printf("user@shell ");
-        pwdir(pwd);
-        printf(" $ ");
+    	strcpy(temp, pwdir(pwd));
+        printf("user@shell %s $", temp);
+        //pwdir(pwd);
+        //printf(" $ ");
 
         readinputplex();
 
@@ -46,9 +48,12 @@ int main() {
             ls(pwd->childPtr);
             break;
         case 2:
-			strcpy(temp,dirname);
-			strcat(temp,basename);
-            if(cd(basename,pwd->childPtr)!=-1) pwd = cd(temp,pwd->childPtr);
+
+			if(strchr(pathname,'/')!=0&&root->childPtr!=0){
+				pwd = cd(pathname,root->childPtr);
+				break;
+			}
+            pwd = cd(basename,pwd->childPtr);
             break;
         case 3:
             pwdir(pwd);
@@ -122,35 +127,36 @@ node *mkdir(char *n, char t, node *cwd) {
 }
 
 node *cd(char *n,node *cwd) {
-    if(*n==0) {
+    if(*n==0|| strcmp(n,"/")==0) {
         cwd=root;
         return cwd;
     }
     if(strchr(n,'/')!=NULL) { //if there is a /
         char *token;
         token = strtok(n,"/");
-        while(token!=NULL) {
+        while(token!=NULL&&cwd!=0) {
             while(cwd!=0) {
                 if(cwd->type!='D') {
                     printf("Error not a directory!\n");
                     return pwd;
                 }
                 if(strncmp(cwd->name,token,64)==0) {
-                    return cwd;
+                     cwd=cwd->childPtr;
+                     break;
                 } else {
                     cwd = cwd->siblingPtr;
                 }
             }
             token=strtok(NULL,"/\n");
 		}
-		return -1;
+		return cwd->parentPtr;
 	}
 
 
-    while(cwd!=0) {
+    while(cwd!=0) {		// if there is not a /
         if(cwd->type!='D') {
             printf("Error not a directory!\n");
-            return pwd;
+            break;
         }
         if(strncmp(cwd->name,n,64)==0) {
             return cwd;
@@ -160,18 +166,34 @@ node *cd(char *n,node *cwd) {
     }
     //printf("Error directory not found\n");
     return -1;
+
 }
 
 void ls(node *cwd) {
-    if(cwd==0)
-        return;
-    while(cwd != 0) {
-        printf("%s ", cwd->name);
-        cwd = cwd->siblingPtr;
-    }
-    printf("\n");
-
-
+	if(strchr(pathname,'/')==NULL) { //if there is not a /
+		if(cwd==0)
+			return;
+		while(cwd != 0) {
+			printf("%s ", cwd->name);
+			cwd = cwd->siblingPtr;
+		}
+		printf("\n");
+		return;
+	}
+	char *token;
+	token = strtok(pathname,"/\n");
+	cwd = root;
+	while(token!=NULL&&cwd!=-1) {
+		cwd = cd(token,cwd->childPtr);
+		token=strtok(NULL,"/\n");
+	}
+	memset(&pathname[0],0,sizeof(pathname));
+	if(cwd!=-1 && cwd->childPtr!=0){
+		ls(cwd->childPtr);
+		return;
+	}
+	printf("Directory not found\n");
+	return;
 }
 
 int findCommand(char com[64]) {
@@ -313,6 +335,7 @@ void readinputplex() {
 void save(char *filename, node *cwd) {
     if(cwd!=0) {
         fputs(pwdir(cwd),fp);
+        fputs("\n",fp);
     }
     if(cwd->siblingPtr!=0) {
 
@@ -323,7 +346,9 @@ void save(char *filename, node *cwd) {
         save(filename, cwd->childPtr);
 
     }
-
+return;
 
 
 }
+
+/*eof*/
