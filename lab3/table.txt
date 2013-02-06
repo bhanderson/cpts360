@@ -1,0 +1,21 @@
+Case	| a.out	| TEXT	| DATA	| BSS	|
+-----------------------------------------
+1	| 8731	| 1168	| 552	|   8	|
+-----------------------------------------
+2	| 8731	| 1168	| 556	|   4	|
+-----------------------------------------
+3	| 8731	| 1168	| 552	| 40032	|
+-----------------------------------------
+4	| 48771	| 1168	| 40658	| 8	|
+-----------------------------------------
+5	| 48771	| 1184	| 40568	| 8	|
+-----------------------------------------
+6	| 48895	| 1184	| 40568	| 40064	|
+-----------------------------------------
+1.	DATA variables are initialized global and static data objects.
+	BSS variables are any un-initialized statics and global variables
+
+2. 	The text section is not in an a.out file
+
+	b. The sizes of the static .out files are much larger than the non static .out files, this is because the -static flag initializes all of the variables and makes them static so they are initialized during compile time.
+
