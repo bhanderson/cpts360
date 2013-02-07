@@ -1,3 +1,4 @@
+#include <stdio.h>
 main(int argc, char *argv[], char *env[])
 {
 	int a,b,c;
@@ -26,16 +27,24 @@ int B(int x, int y)
 
 int C(int x, int y)
 {
-	int u,v,w, *fpC, *fp0;
-	int ebp;
+	int u,v,w, *fpC, *temp;
 	printf("enter C\n");
 	u=9; v=10; w=11;
 	// call assembly files now
-//	ebp = get_ebp();
-//	printf("Stack frame pointer: %8x\n",ebp);
+	fpC = (int*)get_ebp();
 
 
+	printf("\nAddress\t\tContents\n--------\t--------\n");
+	do{
+		printf("%p\t%x\n",temp,(*temp));
+		temp = fpC;
+		do{
+			printf("%p\t%x\n",temp,(*temp));
+			temp++;
+		}while(*temp!=0);
+		printf("%p\t%x\n",temp,(*temp));
+		printf("--------\t--------\n");
+		fpC = (int*)*fpC;
+	}while(*fpC!=0);
 
-
-	printf("exit C\n");
 }
