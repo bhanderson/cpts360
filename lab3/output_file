@@ -35,3 +35,10 @@ Address		Contents
 --------	--------
 exit B
 exit main
+
+3.
+In each section the is a 0xfff.... hex number this is the next call that the program will execute.
+For example the 2nd line is fff77d98 we can then find this in the next section at the top of the list.
+The second line is the FP register, which points to the current active function.
+the rest of the lines are local variables and temps, along with the end of the stack.
+4.
