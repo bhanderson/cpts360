@@ -5,6 +5,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <wait.h>
+#include <sys/types.h>
+
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -13,7 +16,6 @@
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
-
 
 
 
