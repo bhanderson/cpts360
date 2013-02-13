@@ -1,81 +1,102 @@
-#include "header.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <wait.h>
+#include <sys/types.h>
+
 char command[64], input[128], str[128];
 int i = 0;
 
-
-
 int main(int argc, char** argv, char **envp)
 {
+    /*
     for(i=0; envp[i]!=0; i++)
     {
         printf("envp[%d]: %s\n", i,envp[i]);
     }
+    */
     while(1)
     {
-        printf(ANSI_COLOR_GREEN "%s@MySh " ANSI_COLOR_BLUE"%s $ " ANSI_COLOR_RESET,envp[2]+5,get_current_dir_name());
+        printf("\x1b[32m" "%s@MySh " "\x1b[34m" "%s $ " "\x1b[0m",envp[2]+5,get_current_dir_name());
         fgets(input,128,stdin);
         strcpy(str,input);
-        //printf("input: %s\n",str);
+
         char *token = strtok(str, " \n");
-
         if(token!=NULL)
+        {
             strcpy(command, token);
-        //printf("Command: %s\n",command);
-        if(strncmp(command, "exit",64)==0||strncmp(command, "q",64)==0)
-            exit(1);
+        }
 
-        char args[64][64] = {0};
+        if(strncmp(command, "exit",64)==0||strncmp(command, "q",64)==0)
+        {
+            exit(1);
+        }
+
+        char args[64][64];
+        char **myargv=args;
         i=0;
         while(token!=NULL)
         {
+            myargv[i] = token;
+            i++;
             token = strtok(NULL, " \n");
-            if(token!=NULL)
-            {
-                strcpy(args[i],token);
-                printf("Args[%d]: %s\n",i,args[i]);
-                i++;
-            }
-            //token = strtok(NULL, " \n");
         }
-        //printf("Args[0]: %x\n",args[0]);
-        //printf("command: %s\n",command);
+        myargv[i]=NULL;
+
+        for(i =0; myargv[i]!=0; i++)
+        {
+            printf("myargv[%d]: %s\n",i,myargv[i]);
+        }
+        i++;
+        printf("myargv[%d]: %s\n",i,myargv[i]);
+
         if(strncmp(command, "cd",64)==0)
         {
-            //printf("Changing directory soon\n");
-            if(strncmp(args[0],"\0",64)==0)
+            if(strncmp(myargv[1],"\0",64)==0)
             {
-                //printf("CWD:%s\n",get_current_dir_name());
                 chdir(envp[5]+5);
                 printf("CWD:%s\n",get_current_dir_name());
             }
-            else   // end if cd NULL
+            else
             {
-                //printf("CWD:%s\n",get_current_dir_name());
-                if(chdir(args[0])==-1)
+                if(chdir(myargv[1])==-1)
                     printf("chdir error\n");
                 printf("CWD:%s\n",get_current_dir_name());
-            }//end else
+            }
         }
-        else   // end if(cd)
+        else
         {
-            pid_t child_pid, wpid;
-            int status = 0, exe;
-            printf("parent_pid = %d\n", getpid());
-            if((child_pid = fork()) == 0)
+            pid_t pid;
+            int status;
+            char *envp[] = { NULL };
+            char temp[64] = "/bin/";
+            myargv[0] = strcat(temp,command);
+            printf("myargv[0]=%s\n",myargv[0]);
+
+            switch (pid = fork())
             {
-                printf("In child process (pid = %d)\n", getpid());
-                char cat[64];
-                strcat(cat, "/bin/");
-                strcat(cat, command);
-                printf("cat: %s command: %s\n",cat,command);
-                int exe = execve(cat,argv,envp);
-                exit(2);
+            case -1:
+                perror("fork()");
+                exit(EXIT_FAILURE);
+            case 0:
+                status = execve(myargv[0],myargv,envp);
+                //break;
+                exit(status);
+            default:
+                if( waitpid(pid, &status, 0) < 0)
+                {
+                    perror("waitpid()");
+                    exit(EXIT_FAILURE);
+                }
+                if( WIFEXITED(status))
+                {
+                    break; // do not exit get next input
+                    //exit(WEXITSTATUS(status));
+                }
+                exit(EXIT_FAILURE);
             }
-            while((wpid = wait(&status)) > 0)
-            {
-                printf("Exit status of %d was %d\n", (int)wpid, status);
-                printf("EXE: %d\n",exe);
-            }
+
 
         }// end else
 
