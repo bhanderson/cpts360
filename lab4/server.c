@@ -116,12 +116,24 @@ main(int argc, char *argv[])
       printf("server: read  n=%d bytes; line=[%s]\n", n, line);
 
       strcat(line, " ECHO");
+      if(isdigit(line[0]))
+      {
+       char *pEnd;
+       char num1[64], num2[64];
+       long int in1, in2;
+       char sum[64];
+       in1 = strtol(line,&pEnd,10);
+       in2 = strtol(pEnd,&pEnd,10);
+       printf("The sum is: %d\n",in1+in2);
+       sprintf(sum, "%d + %d = %d", in1,in2,in1+in2);
+       n = write(newsock,sum, MAX);
+      }else{
+       // send the echo line to client 
+       n = write(newsock, line, MAX);
 
-      // send the echo line to client 
-      n = write(newsock, line, MAX);
-
-      printf("server: wrote n=%d bytes; ECHO=[%s]\n", n, line);
-      printf("server: ready for next request\n");
+       printf("server: wrote n=%d bytes; ECHO=[%s]\n", n, line);
+       printf("server: ready for next request\n");
+      }
     }
  }
 }
