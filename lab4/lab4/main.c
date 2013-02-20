@@ -3,8 +3,9 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-void print(struct stat s);
+void printstat(struct stat s);
 void getinput();
+void clearstat(struct stat s);
 
 char input[128];
 
@@ -13,7 +14,6 @@ int main()
     struct stat s;
     char *inputPtr=input;
     getinput(inputPtr);
-    //printf("input: %s",input);
     while(strcmp(inputPtr,"exit")!=0 && lstat(input,&s)==0)
     {
 
@@ -21,43 +21,60 @@ int main()
         {
             char *filename;
             filename = strrchr(input,'/');
-
             char name[64];
             char *namePtr;
             readlink(input, name, 64);
             namePtr = strrchr(name,'/');
-            printf("File: %s -> %s\n",filename+1,namePtr+1);
             stat(input,&s);
+            printstat(s);
+            printf(" %s -> %s\n",filename+1,namePtr+1);
+            printf("\n");
+
         }
         else if(S_ISDIR(s.st_mode)) // if s is a dir
         {
             DIR *dp = opendir(input);
             struct dirent *ep = readdir(dp);
+            printf("File: %s\n",input);
+            printf("File_type\tPermissions\tUid\tSize\tCreation Time\n"
+                   "---------\t-----------\t---\t----\t-------------\n");
             while((ep = readdir(dp))!=0)
             {
-                stat(ep->d_name,&s);
-                printf("%s ",ep->d_name);
+                char c[128];
+                strncat(c,input,64);
+                strcat(c,"/");
+                strncat(c,ep->d_name,64);
+                lstat(c,&s);
+				printstat(s);
+				printf(" %s",ep->d_name);
+				printf("\n");
+				printf("C: %s \n",c);
+                //clearstat(s);
+                c[0]='\0';
+
             }
-            printf("\n");
+            //printf("\n");
 
         }
         else
         {
-            printf("File: %s\n",strrchr(input,'/')+1);
+
             printf("File_type\tPermissions\tUid\tSize\tCreation Time\n"
                    "---------\t-----------\t---\t----\t-------------\n");
-            print(s);
+            printstat(s);
+            printf(" %s\n",strrchr(input,'/')+1);
+            printf("\n");
         }
 
 
         getinput();
 
     }// end program loop
-    printf("Invalid filename\n");
+    printf("Invalid file or exit string\n");
     return 0;
 }
 
-void print(struct stat s)
+void printstat(struct stat s)
 {
     if(S_ISREG(s.st_mode)) printf("REG\t\t");
     if(S_ISDIR(s.st_mode)) printf("DIR\t\t");
@@ -77,8 +94,12 @@ void print(struct stat s)
     printf("\t");//space to uid
     printf("%d\t",s.st_uid);
     printf("%d\t",s.st_size);
-    printf("%s\t",ctime(&s.st_ctime));
-    printf("\n");
+
+    char c[64];
+    char *i = c;
+    ctime_r(&s.st_ctime,i);
+    i[strlen(i)-1]='\0';
+    printf("%s",i);
 }
 
 void getinput()
@@ -88,5 +109,22 @@ void getinput()
     gets(in);
     strcpy(input,in);
 }
+
+
+void clearstat(struct stat s)
+{
+    s.st_blksize = 0;
+    s.st_blocks = 0;
+    s.st_dev = 0;
+    s.st_gid = 0;
+    s.st_ino = 0;
+    s.st_mode = 0;
+    s.st_nlink = 0;
+    s.st_rdev = 0;
+    s.st_size = 0;
+    s.st_uid = 0;
+}
+
+
 
 
