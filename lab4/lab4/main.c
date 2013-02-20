@@ -1,33 +1,64 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <dirent.h>
+
+void print(struct stat s);
+void getinput();
+
+char input[128];
 
 int main()
 {
     struct stat s;
-    char input[128];
-    char *inputPtr = input;
-    printf("input path: ");
-    gets(inputPtr);
-    if(input[0]=='\0')
+    char *inputPtr=input;
+    getinput(inputPtr);
+    //printf("input: %s",input);
+    while(strcmp(inputPtr,"exit")!=0 && lstat(input,&s)==0)
     {
-        strcpy(input,"/home/bryce/Downloads/EasyBCD 2.2.exe");
-        lstat(input,&s);
-    }
-    else
-        lstat(input,&s);
 
-    if(S_ISLNK(s.st_mode))
-    {
-        //char[64] name =
-        stat(input,&s);
-        //printf("link %s\n",s.st_nlink);
-    }
+        if(S_ISLNK(s.st_mode)) // if s is a link print filename -> linkname
+        {
+            char *filename;
+            filename = strrchr(input,'/');
 
-    printf("File: %s\n",input);
-    printf("File_type\tPermissions\tUid\tSize\tCreation Time\n"
-           "---------\t-----------\t---\t----\t-------------\n");
+            char name[64];
+            char *namePtr;
+            readlink(input, name, 64);
+            namePtr = strrchr(name,'/');
+            printf("File: %s -> %s\n",filename+1,namePtr+1);
+            stat(input,&s);
+        }
+        else if(S_ISDIR(s.st_mode)) // if s is a dir
+        {
+            DIR *dp = opendir(input);
+            struct dirent *ep = readdir(dp);
+            while((ep = readdir(dp))!=0)
+            {
+                stat(ep->d_name,&s);
+                printf("%s ",ep->d_name);
+            }
+            printf("\n");
 
+        }
+        else
+        {
+            printf("File: %s\n",strrchr(input,'/')+1);
+            printf("File_type\tPermissions\tUid\tSize\tCreation Time\n"
+                   "---------\t-----------\t---\t----\t-------------\n");
+            print(s);
+        }
+
+
+        getinput();
+
+    }// end program loop
+    printf("Invalid filename\n");
+    return 0;
+}
+
+void print(struct stat s)
+{
     if(S_ISREG(s.st_mode)) printf("REG\t\t");
     if(S_ISDIR(s.st_mode)) printf("DIR\t\t");
     if(S_ISLNK(s.st_mode)) printf("LNK\t\t");
@@ -47,7 +78,15 @@ int main()
     printf("%d\t",s.st_uid);
     printf("%d\t",s.st_size);
     printf("%s\t",ctime(&s.st_ctime));
-   // s.st_ctime;
-
-    return 0;
+    printf("\n");
 }
+
+void getinput()
+{
+    char in[128];
+    printf("input path: ");
+    gets(in);
+    strcpy(input,in);
+}
+
+
