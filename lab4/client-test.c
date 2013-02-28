@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -76,21 +76,32 @@ main(int argc, char *argv[ ])
 
   printf("********  processing loop  *********\n");
   while (1){
-    printf("input a line : ");
+    printf("input a file : ");
     bzero(line, MAX);                // zero out line[ ]
     fgets(line, MAX, stdin);         // get a line (end with \n) from stdin
-
     line[strlen(line)-1] = 0;        // kill \n at end
     if (line[0]==0)                  // exit if NULL line
        exit(0);
-
+	int fd = open(line, O_RDONLY);
+	char buff[MAX];
+	if(fd < 0){
+		perror("error opening file");
+		exit(1);
+	}
+	while(read(fd,buff,MAX)!=0)
+	{
+		write(sock, buff, MAX);
+		bzero(buff, MAX);
+	}
+	printf("DONE");
+	shutdown(sock, SHUT_WR);
     // Send ENTIRE line to server
-    n = write(sock, line, MAX);
-    printf("client: wrote n=%d bytes; line=(%s)\n", n, line);
+    //n = write(sock, line, MAX);
+    //printf("client: wrote n=%d bytes; line=(%s)\n", n, line);
 
     // Read a line from sock and show it
-    n = read(sock, ans, MAX);
-    printf("client: read  n=%d bytes; echo=(%s)\n",n, ans);
+    //n = read(sock, ans, MAX);
+    //printf("client: read  n=%d bytes; echo=(%s)\n",n, ans);
   }
 }
 

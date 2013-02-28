@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -103,7 +103,14 @@ main(int argc, char *argv[])
                                         ntohs(client_addr.sin_port));
      printf("-----------------------------------------------\n");
 
-     // Processing loop
+	char buff[MAX];
+	int fd = open("/home/bryce/output", O_CREAT|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP);
+	if(fd <0)
+	{
+		perror("write error 1\n");
+		exit(9);
+	}
+// Processing loop
      while(1){
        n = read(newsock, line, MAX);
        if (n==0){
@@ -111,9 +118,16 @@ main(int argc, char *argv[])
            close(newsock);
            break;
       }
+	  while(read(newsock, buff, MAX)!=0)
+	  {
+		   write(fd, buff, MAX);
+		   bzero(buff, MAX);
+	  }
+	  printf("done");
+
       
       // show the line string
-      printf("server: read  n=%d bytes; line=[%s]\n", n, line);
+  /*    printf("server: read  n=%d bytes; line=[%s]\n", n, line);
 
       strcat(line, " ECHO");
       if(isdigit(line[0]))
@@ -124,8 +138,8 @@ main(int argc, char *argv[])
        char sum[64];
        in1 = strtol(line,&pEnd,10);
        in2 = strtol(pEnd,&pEnd,10);
-       printf("The sum is: %ld\n",in1+in2);
-       sprintf(sum, "%ld + %ld = %ld", in1,in2,in1+in2);
+       printf("The sum is: %d\n",in1+in2);
+       sprintf(sum, "%d + %d = %d", in1,in2,in1+in2);
        n = write(newsock,sum, MAX);
       }else{
        // send the echo line to client 
@@ -133,7 +147,8 @@ main(int argc, char *argv[])
 
        printf("server: wrote n=%d bytes; ECHO=[%s]\n", n, line);
        printf("server: ready for next request\n");
-      }
+      }*/
+
     }
  }
 }
