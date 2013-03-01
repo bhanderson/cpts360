@@ -120,7 +120,12 @@ main(int argc, char *argv[])
       }
 	  while(read(newsock, buff, MAX)!=0)
 	  {
-		   write(fd, buff, MAX);
+		  // if(strcmp(buff,"*`*END*`*")==0){
+		  // printf("FOUND END\n");
+		  // bzero(buff,MAX);
+		  // 	break;
+		//	}
+		   write(2, buff, MAX);
 		   bzero(buff, MAX);
 	  }
 	  printf("done");

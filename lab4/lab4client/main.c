@@ -20,10 +20,12 @@ int SERVER_IP, SERVER_PORT;
 int execute(char input[MAX], char **envp)
 {
     char args[64][64];
+    char tokenline[MAX];
+    strncpy(tokenline, input,MAX);
     char command[64];
     char **myargv=args;
     int i = 0,filestyle=0;
-    char *token = strtok(input, " \n")+1; // +1 to remove the l
+    char *token = strtok(tokenline, " \n")+1; // +1 to remove the l
     printf("token: %s\n",token);
     strcpy(command, token);
 
@@ -33,16 +35,17 @@ int execute(char input[MAX], char **envp)
         i++;
         token = strtok(NULL, " \n");
     }
-    if(strcmp(args[0],"put")==0)
+    if(strcmp(myargv[0],"ut")==0)
     {
         char buff[MAX];
-        int fd = open(args[1], O_RDONLY);
+        int fd = open(myargv[1], O_RDONLY);
         int n;
         if(fd < 0)
         {
             printf("put error 1\n");
             return 1;
         }
+		write(sock,input,MAX);
         while(read(fd,buff,MAX)!=0)
         {
             n = write(sock, buff, MAX);
@@ -52,20 +55,24 @@ int execute(char input[MAX], char **envp)
         write(sock,"*`*END*`*",MAX);
         return 0;
     }
-    if(strcmp(args[0],"get")==0)
+    if(strcmp(myargv[0],"et")==0)
     {
+        printf("in get");
+        printf("args[0]: %s",args[0]);
         char buff[MAX];
-        int fd = open(args[0], O_CREAT|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP);
+        int fd = open(myargv[1], O_CREAT|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP);
         int n;
         if(fd < 0)
         {
             perror("get error 1\n");
             return 1;
         }
+        write(sock,input,MAX);
         while(read(sock, buff, MAX)!=0)
         {
             if(strcmp(buff,"*`*END*`*")==0)
                     break;
+            printf("buff: %s", buff);
             n = write(fd, buff, MAX);
             bzero(buff,MAX);
         }
@@ -230,8 +237,11 @@ main(int argc, char *argv[ ], char *env[ ])
         {
             printf("local command!\n");
             execute(line, env);
-
         }// end localcmd
+        else if(strstr(line,"get")!=NULL||strstr(line,"put")!=NULL)
+        {
+            execute(line, env);
+        }
         else
         {
             n = write(sock, line, MAX);

@@ -80,8 +80,10 @@ main(int argc, char *argv[ ])
     bzero(line, MAX);                // zero out line[ ]
     fgets(line, MAX, stdin);         // get a line (end with \n) from stdin
     line[strlen(line)-1] = 0;        // kill \n at end
+	printf("LINE: %s\n",line);
     if (line[0]==0)                  // exit if NULL line
        exit(0);
+	
 	int fd = open(line, O_RDONLY);
 	char buff[MAX];
 	if(fd < 0){
@@ -90,11 +92,13 @@ main(int argc, char *argv[ ])
 	}
 	while(read(fd,buff,MAX)!=0)
 	{
-		write(sock, buff, MAX);
+		write(2, buff, MAX);
+		//write(sock, buff, MAX);
 		bzero(buff, MAX);
 	}
 	printf("DONE");
-	shutdown(sock, SHUT_WR);
+	write(sock,"*`*END*`*",MAX);
+//	shutdown(sock, SHUT_WR);
     // Send ENTIRE line to server
     //n = write(sock, line, MAX);
     //printf("client: wrote n=%d bytes; line=(%s)\n", n, line);

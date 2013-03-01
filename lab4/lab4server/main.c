@@ -184,12 +184,15 @@ main(int argc, char *argv[],char* env[])
                 else
                     chdir(myargs[1]);
 
+                write(newsock,"*`*END*`*",MAX);
+
+
             }
             else if (strcmp(myargs[0],"get")==0)
             {
                 if (myargs[1]==NULL)
                 {
-                    perror("please input a filename");
+                    perror("please in a filename");
                 }
                 else
                 {
@@ -202,9 +205,10 @@ main(int argc, char *argv[],char* env[])
                     }
                     else
                     {
+                        bzero(buff,MAX);
                         while(read(fd,buff,MAX)!=0)
                         {
-                            n = write(sock, buff, MAX);
+                            n = write(newsock, buff, MAX);
                             bzero(buff,MAX);
                         }
                         printf("Transfer complete\n");
@@ -221,7 +225,8 @@ main(int argc, char *argv[],char* env[])
                 else
                 {
                     char buff[MAX];
-                    int fd = open(myargs[1], O_CREAT|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP);
+                    char *lastparenth = strrchr(myargs[1],'/')+1;
+                    int fd = open(lastparenth, O_CREAT|O_WRONLY,S_IRUSR|S_IWUSR|S_IRGRP);
                     int n;
                     if(fd < 0)
                     {
@@ -229,7 +234,7 @@ main(int argc, char *argv[],char* env[])
                         return 1;
                     }
                     printf("in put\n");
-                    while(read(sock, buff, MAX)!=0)
+                    while(read(newsock, buff, MAX)!=0)
                     {
                         if(strcmp(buff,"*`*END*`*")==0)
                             break;
@@ -306,39 +311,15 @@ main(int argc, char *argv[],char* env[])
 
 
                 }
+                while(read(pipefd[0],line,MAX)!=0)
+                {
+                    n = write(newsock, line, MAX);
+                    n = read(newsock, line, MAX);
+                    bzero(line,MAX);
+                }
+                n = write(newsock,"*`*END*`*",MAX);
             }
-            /*while (line[i]!=' ')
-            {
-              tmp1[i] = line[i];
-              i++;
-            }
-            tmp1[i] = '\0';
-            i++;
-            j = 0;
-            while (line[i]!='\0')
-            {
-                  tmp2[j] = line[i];
-                  i++;
-                  j++;
-            }
-            tmp2[j]='\0';
 
-            strcpy(line, tmp1);
-              strcat(line, " + ");
-              strcat(line, tmp2);
-              strcat(line," = ");
-              i = atoi(tmp1) + atoi(tmp2);
-              sprintf(tmp1,"%d",i);
-              strcat(line,tmp1);
-              */
-            // send the echo line to client
-            while(read(pipefd[0],line,MAX)!=0)
-            {
-                n = write(newsock, line, MAX);
-                n = read(newsock, line, MAX);
-                bzero(line,MAX);
-            }
-            n = write(newsock,"*`*END*`*",MAX);
             //shutdown(newsock, SHUT_WR);
 
             //printf("server: wrote n=%d bytes; ECHO=[%s]\n", n, line);
