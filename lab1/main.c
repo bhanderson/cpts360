@@ -27,8 +27,7 @@ char *systems [0xff][20];
 void fill_array(void);
 void read_partitions(struct partition *p);
 
-
-int main(void){
+int main(int argc, const char *argv[]){
 	fill_array();
 	struct partition *p;
 	char command;
@@ -36,7 +35,7 @@ int main(void){
 	command = getchar();
 	if(command == 'p'){
 		puts("Device \t Type \t Head \t Start Sector \t    Size \t System\n");
-		fd = open("/home/bryce/workspace/lab1/vdiskImage", O_RDONLY);
+		fd = open(argv[1], O_RDONLY);
 		lseek(fd, (long)0, 0);
 		read(fd, buf, 512);
 		p = (struct partition *)(&buf[0x1be]);
@@ -47,8 +46,9 @@ int main(void){
 }// end main
 
 void read_partitions(struct partition *p){
+	int i =0;
     while(p->sys_type != 0 && p->drive == 0 ){
-        printf("Part%d \t", part);
+        printf("Part%d \t", part+i++);
         printf(" %2x \t", p->sys_type);
 		printf(" %2x \t", p->head);
 		printf(" %8d \t", p->start_sector+estart);
