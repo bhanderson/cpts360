@@ -5,6 +5,7 @@ INODE *mount_root(char *p);
 void ls(char *p, PROC *parent);
 int search(INODE *inodePtr, char *name);
 void printdir(INODE *inodePtr);
+void cd(char *pathname);
 
 PROC *p0;
 PROC *p1;
@@ -21,10 +22,11 @@ INODE *in;
 int main(int argc, char *argv[]) {
     int i,cmd;
     char line[128], cname[64];
-	printf("%s",argv[1]);
+	//printf("%s",argv[1]);
     init();
 	memcpy(&root->INODE,mount_root(argv[1]),sizeof(INODE));
-	ls(argv[2],p0);
+	//ls(argv[2],p0);
+	cd(argv[2]);
 /*
     while(1) {
         printf("P%d running: ", running->pid);
@@ -185,7 +187,6 @@ void init() {
 }
 
 INODE *mount_root(char *path) {
-
     fd = open(path,O_RDWR);
     lseek(fd, BLOCK_SIZE*SUPERBLOCK, SEEK_SET);
 	read(fd, sb, BLOCK_SIZE);
@@ -291,3 +292,19 @@ void printdir(INODE *inodePtr){
 	}
 	return;
 }
+
+
+void cd(char *pathname){
+	char path[128];
+	strncpy(path,pathname,128);
+	if( strcmp(path,"/")==0|| strcmp(path,"")==0){
+		//cd to root
+		printf("cd to root\n");
+	}else{
+		char *token = strtok(path,"/");
+		printf("%s",token);
+		return;
+	}
+}
+
+
