@@ -405,13 +405,13 @@ unsigned long ialloc(int dev) {
     char data_buff[1024];
     lseek(dev, IBITMAP * BLOCK_SIZE, SEEK_SET);
     read(dev, data_buff, 1024);
-    for (i = 0; i<1024*8; i++) {
-        if (tstbit(data_buff,i) == 0) {
+    for (i = 1; i<1024*8; i++) {
+        if (tstbit(data_buff,i-1) == 0) {
 
-            setbit(data_buff,i);
+            setbit(data_buff,i-1);
             lseek(dev, IBITMAP * BLOCK_SIZE, SEEK_SET);
             write(dev, data_buff, 1024);
-            return i+1;
+            return i;
         }
 
 
