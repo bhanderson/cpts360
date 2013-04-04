@@ -11,6 +11,7 @@ MINODE *iget(int dev, unsigned long ino);
 MINODE *iput(MINODE *mip);
 unsigned long ialloc(int dev);
 unsigned long balloc(int dev);
+int findCmd(char *command);
 
 PROC *p0;
 PROC *p1;
@@ -25,13 +26,56 @@ INODE *in;
 
 
 int main(int argc, char *argv[]) {
+	char line[128], diskpath[128], command[64], path[64];
+	int cmd;
+
+	init();
+    
+	memcpy(&root->INODE,mount_root(argv[1]),sizeof(INODE));
+	
+	while(1){
+		printf("input command: ");
+		fgets(line, 128, stdin);
+		line[strlen(line)-1] = 0;
+		if(line[0]==0)
+			continue;
+		path[0]=0;
+		sscanf(line, "%s %s", command, path);
+		cmd = findCmd(command);
+		switch(cmd){
+			case 0: //mkdir
+				mymkdir(p0->cwd,path);
+				break;
+			case 1: //cd
+				if(strlen(path)==0){
+					printf("must input cd path\n");
+					break;
+				}
+				cd(path);
+				break;
+			case 2: //pwd
+				break;
+			case 3: //ls
+				ls(path,p0);
+				break;
+			case 99:
+				exit(0);
+		}
+	}
+
+
+
+
+/*
+
 //    int i,cmd;
 //    char line[128], cname[64];
 	init();
     memcpy(&root->INODE,mount_root(argv[1]),sizeof(INODE));
 	cd(argv[2]);
 	char line[128];
-	ls("/",p0);
+	ls(argv[2],p0);
+	/*
 	mymkdir(root,"thing1");
 	mymkdir(root,"thing2");
 	ls("/",p0);
@@ -233,7 +277,13 @@ void ls(char *pathname, PROC *parent) {
     INODE *cwd = calloc(sizeof(INODE), 1);
     char path[128];
     strncpy(path, pathname, 128);
-    int inodeIndex;
+    int inodeIndex, seek;
+//	printf("pathname[0]: %c %d\n",pathname[0], pathname[0]);
+//	if(pathname[0]!='/'){
+//		printf("input ls path\n");
+//		return;
+//	}
+//	printf("Pathname[0]: %c \n", pathname[0]);
 
     if(pathname[0] == '/') {
         strncpy(path, path+1, 127);
@@ -242,8 +292,10 @@ void ls(char *pathname, PROC *parent) {
 
         while(token !=NULL) {
             inodeIndex = search(cwd, token);
-            lseek(fd, (BLOCK_SIZE * gp->bg_inode_table + (128 *
-                       inodeIndex)),SEEK_SET);
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 + 
+										(inodeIndex-1)%8 * 128;
+
+            lseek(fd, seek,SEEK_SET);
 
             read(fd, cwd, sizeof(INODE));
             token = strtok(NULL, "/");
@@ -252,7 +304,9 @@ void ls(char *pathname, PROC *parent) {
         printdir(cwd);
         return;
 
-    } else if(pathname[0] == '\0') {
+    } else if(pathname[0] <= 0) {
+//		printf("pathname[0] %c ", pathname[0]);
+//		printf("parent: %d", parent->cwd->INODE.i_block[0]);
         printdir(&parent->cwd->INODE);
         return;
 
@@ -264,8 +318,13 @@ void ls(char *pathname, PROC *parent) {
 
         while(token !=NULL) {
             inodeIndex = search(cwd, token);
-            lseek(fd, (BLOCK_SIZE * gp->bg_inode_table + (128 *
-                       inodeIndex)),SEEK_SET);
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 + 
+										(inodeIndex-1)%8 * 128;
+			lseek(fd, seek, SEEK_SET);
+
+
+//            lseek(fd, (BLOCK_SIZE * gp->bg_inode_table + (128 *
+ //                      inodeIndex)),SEEK_SET);
 
             read(fd, cwd, sizeof(INODE));
             token = strtok(NULL, "/");
@@ -322,8 +381,9 @@ void printdir(INODE *inodePtr) {
 void cd(char *pathname) {
     char path[128];
     strncpy(path,pathname,128);
+	int seek;
     if( strcmp(path,"/")==0|| strcmp(path,"")==0) {
-        printf("cd to root\n");
+//        printf("cd to root\n");
         memcpy(&p0->cwd->INODE, &root->INODE, sizeof(INODE));
         return;
     } else {
@@ -339,8 +399,12 @@ void cd(char *pathname) {
         memcpy(cwd, &p0->cwd->INODE, sizeof(INODE));
         while(token != NULL) {
             inodeIndex = search(cwd, token);
-            lseek(fd, (BLOCK_SIZE * gp->bg_inode_table + (128 *
-                       inodeIndex)), SEEK_SET);
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 + 
+										(inodeIndex-1)%8 * 128;
+			lseek(fd, seek, SEEK_SET);
+
+//            lseek(fd, (BLOCK_SIZE * gp->bg_inode_table + (128 *
+//                       inodeIndex)), SEEK_SET);
             read(fd, cwd, sizeof(INODE));
             token = strtok(NULL, "/");
         }
@@ -509,6 +573,25 @@ int mymkdir(MINODE *pip, char *name) {
 	pip->refCount++;
 
 	return 0;
+
+}
+
+int findCmd(char *cname){
+	if(strcmp(cname, "mkdir")==0){
+		return 0;
+	}
+	if(strcmp(cname, "cd")==0){
+		return 1;
+	}
+	if(strcmp(cname, "pwd")==0){
+		return 2;
+	}
+	if(strcmp(cname, "ls")==0){
+		return 3;
+	}
+	if(strcmp(cname, "exit")==0){
+		return 99;
+	}
 
 }
 
