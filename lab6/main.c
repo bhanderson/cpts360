@@ -26,13 +26,13 @@ INODE *in;
 
 
 int main(int argc, char *argv[]) {
-	char line[128], diskpath[128], command[64], path[64];
+	char line[128], command[64], path[64];
 	int cmd;
 
 	init();
-    
+
 	memcpy(&root->INODE,mount_root(argv[1]),sizeof(INODE));
-	
+
 	while(1){
 		printf("input command: ");
 		fgets(line, 128, stdin);
@@ -247,7 +247,7 @@ void init() {
     //p0->cwd=0;
     p1->uid=1;
     //p0->cwd=0;
-    sp = malloc(sizeof(SUPER));
+    sb = malloc(sizeof(SUPER));
     gp = malloc(sizeof(GD));
     in = malloc(sizeof(INODE));
 
@@ -268,7 +268,11 @@ INODE *mount_root(char *path) {
     lseek(fd, BLOCK_SIZE*gp->bg_inode_table+sizeof(INODE), SEEK_SET);
     read(fd, in, sizeof(INODE));
     memcpy(&p0->cwd->INODE, in, sizeof(INODE));
+    p0->cwd->ino=2;
+    p0->cwd->dev=fd;
     memcpy(&p1->cwd->INODE, in, sizeof(INODE));
+	p1->cwd->ino=2;
+	p1->cwd->dev=fd;
 
     return in;
 }
@@ -278,12 +282,6 @@ void ls(char *pathname, PROC *parent) {
     char path[128];
     strncpy(path, pathname, 128);
     int inodeIndex, seek;
-//	printf("pathname[0]: %c %d\n",pathname[0], pathname[0]);
-//	if(pathname[0]!='/'){
-//		printf("input ls path\n");
-//		return;
-//	}
-//	printf("Pathname[0]: %c \n", pathname[0]);
 
     if(pathname[0] == '/') {
         strncpy(path, path+1, 127);
@@ -292,7 +290,7 @@ void ls(char *pathname, PROC *parent) {
 
         while(token !=NULL) {
             inodeIndex = search(cwd, token);
-			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 + 
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
 										(inodeIndex-1)%8 * 128;
 
             lseek(fd, seek,SEEK_SET);
@@ -305,8 +303,6 @@ void ls(char *pathname, PROC *parent) {
         return;
 
     } else if(pathname[0] <= 0) {
-//		printf("pathname[0] %c ", pathname[0]);
-//		printf("parent: %d", parent->cwd->INODE.i_block[0]);
         printdir(&parent->cwd->INODE);
         return;
 
@@ -318,14 +314,9 @@ void ls(char *pathname, PROC *parent) {
 
         while(token !=NULL) {
             inodeIndex = search(cwd, token);
-			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 + 
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
 										(inodeIndex-1)%8 * 128;
 			lseek(fd, seek, SEEK_SET);
-
-
-//            lseek(fd, (BLOCK_SIZE * gp->bg_inode_table + (128 *
- //                      inodeIndex)),SEEK_SET);
-
             read(fd, cwd, sizeof(INODE));
             token = strtok(NULL, "/");
         }
@@ -392,14 +383,14 @@ void cd(char *pathname) {
             strncpy(path, path+1, 127);
         }
         char *token = strtok(path,"/");
-        printf("%s",token);
+       // printf("%s",token);
         int inodeIndex;
 
         INODE *cwd = calloc(sizeof(INODE), 1);
         memcpy(cwd, &p0->cwd->INODE, sizeof(INODE));
         while(token != NULL) {
             inodeIndex = search(cwd, token);
-			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 + 
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
 										(inodeIndex-1)%8 * 128;
 			lseek(fd, seek, SEEK_SET);
 
@@ -415,8 +406,12 @@ void cd(char *pathname) {
 }
 
 MINODE *iget(int dev, unsigned long ino) {
-    lseek(dev, BLOCK_SIZE*INODEBLOCK + (ino * sizeof(INODE)), SEEK_SET);
+	int seek = ((ino-1)/8 + gp->bg_inode_table)*1024 +
+										(ino-1)%8 * 128;
+	lseek(fd, seek,SEEK_SET);
+
     INODE iptr;
+
     int i;
     read(dev, &iptr, sizeof(INODE));
 
@@ -447,31 +442,22 @@ MINODE *iput(MINODE *mip) {
     }
     if(mip->dirty>0) {
         mip->dirty=0;
-        lseek(mip->dev, BLOCK_SIZE*INODEBLOCK + (mip->ino * 128), SEEK_SET);
+        int seek = ((mip->ino-1)/8 + gp->bg_inode_table)*1024 +
+										(mip->ino-1)%8 * 128;
+		lseek(fd, seek,SEEK_SET);
         write(mip->dev, &mip->INODE, sizeof(INODE));
-        //free(mip);
         return mip;
     }
     return (MINODE *)-1;
 }
 
 unsigned long ialloc(int dev) {
-    /* myInode;
-    	unsigned long i=1;
-    	lseek(dev, BLOCK_SIZE*INODEBLOCK  + sizeof(INODE), SEEK_SET);
-    	read(dev, &myInode, sizeof(INODE));
-    	while(myInode.i_size>0){
-    		read(dev, &myInode, sizeof(INODE));
-    		i++;
-    	}
-    	return i;*/
     int i;
     char data_buff[1024];
     lseek(dev, IBITMAP * BLOCK_SIZE, SEEK_SET);
     read(dev, data_buff, 1024);
     for (i = 1; i<1024*8; i++) {
         if (tstbit(data_buff,i-1) == 0) {
-
             setbit(data_buff,i-1);
             lseek(dev, IBITMAP * BLOCK_SIZE, SEEK_SET);
             write(dev, data_buff, 1024);
@@ -484,12 +470,11 @@ unsigned long ialloc(int dev) {
 }
 
 unsigned long balloc(int dev) {
-    //int data_block = root->INODE.i_block[0];
     int i;
     char data_buff[1024];
     lseek(dev, BBITMAP * BLOCK_SIZE, SEEK_SET);
     read(dev, data_buff, 1024);
-    for (i = 0; i<1024*8; i++) {
+    for (i = 1; i<1024*8; i++) {
         if (tstbit(data_buff,i) == 0) {
             setbit(data_buff,i);
             lseek(dev, BBITMAP * BLOCK_SIZE, SEEK_SET);
@@ -526,6 +511,7 @@ int mymkdir(MINODE *pip, char *name) {
     mip->INODE.i_atime=mip->INODE.i_ctime=mip->INODE.i_mtime = time(0L);
     mip->INODE.i_blocks = 2;
     iput(mip);
+    memset(buff, 0, 1024);
     dp = (DIR *)buff;
 
     dp->inode = inumber;		/* Inode number */
@@ -546,7 +532,6 @@ int mymkdir(MINODE *pip, char *name) {
     write(fd,buff,BLOCK_SIZE);
     lseek(fd, pip->INODE.i_block[0]*BLOCK_SIZE,SEEK_SET);
     read(fd, buff, 1024);
-	int need_length = 4*((8+strlen(name)+3)/4);
 
 	cp = buff;
 	dp = (DIR *) buff;
@@ -557,8 +542,10 @@ int mymkdir(MINODE *pip, char *name) {
 		dp = (DIR *)cp;
 
 	}
+	int need_length = 4*((8+dp->name_len+3)/4);
+
 	int tmp = dp->rec_len;
-	dp->rec_len = 4*((8+dp->name_len+3)/4);
+	dp->rec_len = need_length;
 	tmp = tmp - dp->rec_len;
 	cp += dp->rec_len;
 	dp = (DIR *)cp;
@@ -592,6 +579,5 @@ int findCmd(char *cname){
 	if(strcmp(cname, "exit")==0){
 		return 99;
 	}
-
+	return -1;
 }
-
