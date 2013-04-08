@@ -25,7 +25,7 @@ GD    *gp;
 INODE *in;
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) { /*{{{*/
 	char line[128], command[64], path[64];
 	int cmd;
 
@@ -232,9 +232,9 @@ int main(int argc, char *argv[]) {
             }
         }*/
     return 0;
-} /* end main */
+} /* end main */ /*}}}*/
 
-void init() {
+void init() { /*{{{*/
     int i;
     p0 = malloc(sizeof(PROC));
     p0->cwd = malloc(sizeof(MINODE));
@@ -257,7 +257,7 @@ void init() {
     }
 
     return;
-}
+} /*}}}*/
 
 INODE *mount_root(char *path) {
     fd = open(path,O_RDWR);
