@@ -259,7 +259,7 @@ void init() { /*{{{*/
     return;
 } /*}}}*/
 
-INODE *mount_root(char *path) {
+INODE *mount_root(char *path) { /*{{{*/
     fd = open(path,O_RDWR);
     lseek(fd, BLOCK_SIZE*SUPERBLOCK, SEEK_SET);
     read(fd, sb, BLOCK_SIZE);
@@ -275,9 +275,9 @@ INODE *mount_root(char *path) {
 	p1->cwd->dev=fd;
 
     return in;
-}
+} /*}}}*/
 
-void ls(char *pathname, PROC *parent) {
+void ls(char *pathname, PROC *parent) { /*{{{*/
     INODE *cwd = calloc(sizeof(INODE), 1);
     char path[128];
     strncpy(path, pathname, 128);
@@ -321,9 +321,9 @@ void ls(char *pathname, PROC *parent) {
             token = strtok(NULL, "/");
         }
     }
-}
+} /*}}}*/
 
-unsigned long search(INODE *inodePtr, char *name) {
+unsigned long search(INODE *inodePtr, char *name) { /*{{{*/
     DIR *dp = (DIR *) buff;
     int i,j;
     char *cp;
@@ -347,9 +347,9 @@ unsigned long search(INODE *inodePtr, char *name) {
         }
     }
     return 0;
-}
+} /*}}}*/
 
-void printdir(INODE *inodePtr) {
+void printdir(INODE *inodePtr) { /*{{{*/
     int data_block = inodePtr->i_block[0];
     DIR *dp;
     lseek(fd, BLOCK_SIZE*data_block, SEEK_SET);
@@ -367,9 +367,9 @@ void printdir(INODE *inodePtr) {
         dp = (DIR *)cp;
     }
     return;
-}
+} /*}}}*/
 
-void cd(char *pathname) {
+void cd(char *pathname) { /*{{{*/
     char path[128];
     strncpy(path,pathname,128);
 	int seek;
@@ -403,9 +403,9 @@ void cd(char *pathname) {
 
         return;
     }
-}
+} /*}}}*/
 
-MINODE *iget(int dev, unsigned long ino) {
+MINODE *iget(int dev, unsigned long ino) { /*{{{*/
 	int seek = ((ino-1)/8 + gp->bg_inode_table)*1024 +
 										(ino-1)%8 * 128;
 	lseek(fd, seek,SEEK_SET);
@@ -430,9 +430,9 @@ MINODE *iget(int dev, unsigned long ino) {
     minode[i].dev = dev;
     minode[i].ino = ino;
     return &minode[i];
-}
+} /*}}}*/
 
-MINODE *iput(MINODE *mip) {
+MINODE *iput(MINODE *mip) { /*{{{*/
     mip->refCount--;
     if(mip->refCount>0) {
         return mip;
@@ -449,9 +449,9 @@ MINODE *iput(MINODE *mip) {
         return mip;
     }
     return (MINODE *)-1;
-}
+} /*}}}*/
 
-unsigned long ialloc(int dev) {
+unsigned long ialloc(int dev) { /*{{{*/
     int i;
     char data_buff[1024];
     lseek(dev, IBITMAP * BLOCK_SIZE, SEEK_SET);
@@ -467,9 +467,9 @@ unsigned long ialloc(int dev) {
 
     }
     return -1;
-}
+} /*}}}*/
 
-unsigned long balloc(int dev) {
+unsigned long balloc(int dev) { /*{{{*/
     int i;
     char data_buff[1024];
     lseek(dev, BBITMAP * BLOCK_SIZE, SEEK_SET);
@@ -484,9 +484,9 @@ unsigned long balloc(int dev) {
 
     }
 	return -1;
-}
+} /*}}}*/
 
-int mymkdir(MINODE *pip, char *name) {
+int mymkdir(MINODE *pip, char *name) { /*{{{*/
     MINODE *mip;
     char *cp;
     memset(buff, 0, 1024);
@@ -561,9 +561,9 @@ int mymkdir(MINODE *pip, char *name) {
 
 	return 0;
 
-}
+} /*}}}*/
 
-int findCmd(char *cname){
+int findCmd(char *cname){ /*{{{*/
 	if(strcmp(cname, "mkdir")==0){
 		return 0;
 	}
@@ -580,4 +580,4 @@ int findCmd(char *cname){
 		return 99;
 	}
 	return -1;
-}
+} /*}}}*/
