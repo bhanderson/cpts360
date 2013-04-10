@@ -552,8 +552,10 @@ int mymkdir(MINODE *pip, char *name) { /*{{{*/
 	dp->rec_len = tmp;
 	dp->name_len = strlen(name);
 	dp->inode = mip->ino;
-	for(i = 0;i<dp->name_len;i++)
-		dp->name[i]=name[i];
+
+	strcpy(dp->name, name);
+//	for(i = 0;i<dp->name_len;i++)
+//		dp->name[i]=name[i];
     lseek(fd, pip->INODE.i_block[0]*BLOCK_SIZE,SEEK_SET);
 	write(fd,buff,BLOCK_SIZE);
 	pip->dirty =1;

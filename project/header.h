@@ -14,6 +14,11 @@ void print_block(int dev, int block);
 int findCmd(char *cname);
 int make_dir();
 int my_mkdir(MINODE *pip, char *name);
+unsigned long search(INODE *inodePtr, char *name);
+unsigned long ialloc(int dev);
+void idealloc(int dev, unsigned long ino);
+unsigned long balloc(int dev);
+void bdealloc(int dev, unsigned long ino);
 
 PROC *running;
 PROC *p0;
@@ -25,7 +30,6 @@ MINODE minode[100];
 int fd;
 
 char buff[BLOCK_SIZE];
-
 
 void init(){ /*{{{*/
 	int i;
@@ -70,7 +74,8 @@ void mount_root( char *path ){ /*{{{*/
 } /*}}}*/
 
 MINODE *iget(int dev, unsigned long ino){ /*{{{*/
-	int i, freeNode, block, pos;
+	int i=0, freeNode=0, block=0, pos=0;
+	freeNode=0;
 	for (i = 0; i < 100; i++) {
 		if(minode[i].ino == 0){
 			if(freeNode == 0)
@@ -83,19 +88,19 @@ MINODE *iget(int dev, unsigned long ino){ /*{{{*/
 	}
 
 	// else it is not in the minode array so find it on the disk
-	block = (ino-1) / INODES_PER_BLOCK + 5; // TODO + inode_table but 5 works
+	block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table; // TODO + inode_table but 5 works
 	pos = (ino-1) % INODES_PER_BLOCK;
 	get_block(fd, block, (char *)&buff);
 
-	minode[i].dev = dev;
-	minode[i].dirty = 0;
-	minode[i].INODE = *( ((INODE*)buff) + pos); // david barajas c magic
-	minode[i].ino = ino;
-	minode[i].mounted = 0;
-	minode[i].mountptr = NULL;
-	minode[i].refCount = 1;
+	minode[freeNode].dev = dev;
+	minode[freeNode].dirty = 0;
+	minode[freeNode].INODE = *( ((INODE*)buff) + pos); // david barajas c magic
+	minode[freeNode].ino = ino;
+	minode[freeNode].mounted = 0;
+	minode[freeNode].mountptr = NULL;
+	minode[freeNode].refCount = 1;
 
-	return &minode[i];
+	return &minode[freeNode];
 } /*}}}*/
 
 void iput(MINODE *mip){ /*{{{*/
@@ -127,8 +132,42 @@ void put_block(int dev, int block, char *buf){ /*{{{*/
 } /*}}}*/
 
 unsigned long getino(int *dev, char *pathname){ /*{{{*/
+	INODE *cwd = malloc(sizeof(INODE));
+	char path[128], *token;
+	int inodeIndex, seek;
 
-	return 0;
+	strncpy(path, pathname, 128);
+
+	if(pathname[0] == '/'){
+		strncpy(path, path+1, 127); // remove root symbol
+		token = strtok(path, "/");
+		cwd = &root->INODE;
+
+		while(token !=NULL){
+			inodeIndex = search(cwd, token);
+			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
+				(inodeIndex-1)%8 * 128;
+			lseek(*dev, seek, SEEK_SET);
+
+			read(*dev, cwd, sizeof(INODE));
+			token = strtok(NULL, "/");
+		}
+		return inodeIndex;
+	}else {
+		token = strtok(path, "/");
+		cwd = &root->INODE;
+		
+		while(token != NULL) {
+			inodeIndex = search(cwd, token);
+			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
+				(inodeIndex-1)%8 * 128;
+			lseek(*dev, seek, SEEK_SET);
+			read(fd, cwd, sizeof(INODE));
+			token = strtok(NULL, "/");
+		}
+		return inodeIndex;
+	}
+
 } /*}}}*/
 
 void print_block(int dev, int block){ /*{{{*/
@@ -219,8 +258,9 @@ int findCmd(char *cname){ /*{{{*/
 } /*}}}*/
 
 int make_dir(){ /*{{{*/
-	char line[128], parent[64], child[64];
-	int dev;
+	char line[128], parent[64], child[64], temp[64];
+	int dev, ino, r;
+	MINODE *pip;
 
 	printf("enter the pathname ");
 	fgets(line, 128, stdin);
@@ -229,22 +269,180 @@ int make_dir(){ /*{{{*/
 		dev = root->dev;
 	else
 		dev = running->cwd->dev;
-	
-	strncpy(child, strrchr(line, '/')+1, 64);
-	printf("child: %s\n", child);
 
-	strncpy(parent, line, strcspn(line,child)-1);
-	parent[strcspn(line,child)-1]=0;
-	printf("parent: %s\n", parent);
-	return 1;
+	strcpy(temp, line);
+	strcpy(parent, dirname(temp));
+
+	strcpy(temp, line);
+	strcpy(child, basename(temp));
+
+	ino = getino(&dev, parent);
+	pip = iget(dev, ino);
+
+	r = my_mkdir(pip,child);
+
+	return r;
+
 
 } /*}}}*/
 
+int my_mkdir(MINODE *pip, char *name){ /*{{{*/
+	int inumber, bnumber, dev,i ;
+	char *cp;
+	MINODE *mip;
+
+	dev = pip->dev;
+
+	inumber = ialloc(dev);
+	bnumber = balloc(dev);
+	
+	mip = iget(dev, inumber);
+	mip->INODE.i_block[0] = bnumber;
+
+	for (i = 1; i < 16; i++) {
+		mip->INODE.i_block[i]=0;
+	}
+
+	mip->dirty=1;
+	mip->ino = inumber;
+	mip->INODE.i_mode=0x41ED;
+	mip->INODE.i_uid=running->uid;
+	mip->INODE.i_gid=running->gid;
+	mip->INODE.i_size=1024;
+	mip->INODE.i_links_count=2;
+	mip->INODE.i_atime=mip->INODE.i_ctime=mip->INODE.i_mtime = time(0L);
+	mip->INODE.i_blocks=2;
+	iput(mip);
+
+	// write the . and .. entries into buff
+	memset(buff, 0, 1024);
+
+	dp = (DIR *)buff;
+	dp->inode = inumber;
+	strncpy(dp->name, ".", 1);
+	dp->name_len = 1;
+	dp->rec_len = 12;
+	
+	cp = buff;
+	cp += dp->rec_len;
+	dp = (DIR *)cp;
+
+	dp->inode = pip->ino;
+	dp->name_len = 2;
+	strncpy(dp->name, "..", 2);
+	dp->rec_len = BLOCK_SIZE - 12;
+	put_block(dev, bnumber, buff);
+
+	lseek(dev, pip->INODE.i_block[0]*BLOCK_SIZE, SEEK_SET );
+	read(fd, buff, BLOCK_SIZE);
+
+	cp = buff;
+	dp = (DIR *) buff;
+
+	while(cp+dp->rec_len < buff +1024) {
+		cp += dp->rec_len;
+		dp = (DIR *)cp;
+	}
+	int need_length = 4*((8+dp->name_len+3)/4);
+	int tmp = dp->rec_len;
+	dp->rec_len = need_length;
+	tmp = tmp - dp->rec_len;
+	
+	cp += dp->rec_len;
+	dp = (DIR *)cp;
+	
+	dp->rec_len = tmp;
+	dp->name_len = strlen(name);
+	dp->inode = mip->ino;
+	strcpy(dp->name, name);
+	/*
+	for (i = 0; i < dp->name_len; i++) {
+		dp->name[i] = name[i];
+	}*/
+
+	put_block(dev, pip->INODE.i_block[0]*BLOCK_SIZE, SEEK_SET);
+
+	pip->dirty = 1;
+	pip->refCount++;
+	iput(pip);
+	return 0;
 
 
+} /*}}}*/
 
-int my_mkdir(MINODE *pip, char *name);
+unsigned long search(INODE *inodePtr, char *name) /*{{{*/
+{
+	DIR *dp = (DIR *) buff;
+	int i,j;
+	char *cp, tmp[256];
+	for (i = 0; i < 12; i++) {
+		cp = buff;
+		dp = (DIR *) buff;
+		lseek(fd, inodePtr->i_block[i]*1024, SEEK_SET);
+		read(fd, buff, 1024);
+		while(cp < buff + 1024){
+			for (j = 0; j < dp->name_len; j++) {
+				tmp[j]=(char)dp->name[j];
+			}
+			tmp[j] = 0;
+			if(strcmp(name, tmp) == 0 ) {
+				return dp->inode;
+			}else{
+				cp += dp->rec_len;
+				dp = (DIR *)cp;
+			}
+		}
+	}
+	return 0;
+} /*}}}*/
 
+unsigned long ialloc(int dev){ /*{{{*/
+	int i;
+	lseek(dev, BLOCK_SIZE*IBITMAP, SEEK_SET);
 
+	get_block(dev, IBITMAP, buff);
+
+	for (i = 0; i < 1024*8; i++) {
+		if(tstbit(buff, i)==0){
+			setbit(buff, i);
+			put_block(dev, IBITMAP, buff);
+			return (i+1);
+		}
+	}
+	return 0;
+} /*}}}*/
+
+void idealloc(int dev, unsigned long ino) /*{{{*/
+{
+	int i;
+	get_block(dev, IBITMAP, buff);
+	clearbit(buff, ino-1);
+	put_block(dev, IBITMAP, buff);
+	return;
+} /*}}}*/
+
+unsigned long balloc(int dev) /*{{{*/
+{
+	int i;
+	lseek(dev, BBITMAP, SEEK_SET);
+	get_block(dev, BBITMAP, buff);
+
+	for (i = 0; i < 1024*8; i++) {
+		if(tstbit(buff, i)==0){
+			setbit(buff,i);
+			put_block(dev, BBITMAP, buff);
+			return (i+1);
+		}
+	}
+	return 0;
+} /*}}}*/
+
+void bdealloc(int dev, unsigned long ino) /*{{{*/
+{
+	int i;
+	get_block(dev, BBITMAP, buff);
+	clearbit(buff, ino-1);
+	put_block(dev, BBITMAP, buff);
+} /*}}}*/
 
 #endif
