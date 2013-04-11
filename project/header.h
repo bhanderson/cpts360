@@ -19,6 +19,8 @@ unsigned long ialloc(int dev);
 void idealloc(int dev, unsigned long ino);
 unsigned long balloc(int dev);
 void bdealloc(int dev, unsigned long ino);
+void ls(char *pathname, PROC *parent);
+void printdir(INODE *inodePtr);
 
 PROC *running;
 PROC *p0;
@@ -111,8 +113,9 @@ void iput(MINODE *mip){ /*{{{*/
 	if(mip->dirty == 0)
 		return;
 	// else
-	block = (mip->ino - 1) / INODES_PER_BLOCK + 5;
+	block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
 	pos = (mip->ino - 1) % INODES_PER_BLOCK;
+
 	get_block(fd, block, (char *)&buff);
 	lseek((int)&buff, pos, SEEK_SET);
 	write((int)&buff, mip, sizeof(INODE));
@@ -126,7 +129,7 @@ void get_block(int dev, int block, char *buf){ /*{{{*/
 } /*}}}*/
 
 void put_block(int dev, int block, char *buf){ /*{{{*/
-	lseek(dev, (long)BLOCK_SIZE*block, SEEK_SET);
+	lseek(dev, BLOCK_SIZE*block, SEEK_SET);
 	write(dev, buf, BLOCK_SIZE);
 	return;
 } /*}}}*/
@@ -343,10 +346,14 @@ int my_mkdir(MINODE *pip, char *name){ /*{{{*/
 		cp += dp->rec_len;
 		dp = (DIR *)cp;
 	}
+	// calculate size of last item in cwd to reduce rec_len
 	int need_length = 4*((8+dp->name_len+3)/4);
-	int tmp = dp->rec_len;
+	// storing the lenght of the new last dir
+	int tmp = dp->rec_len - need_length;
+	// change last dir rec_len to needed length 
 	dp->rec_len = need_length;
-	tmp = tmp - dp->rec_len;
+	// generate rec_len of new dir by sub rec len of last dir
+	//tmp = tmp - dp->rec_len; not needed?
 	
 	cp += dp->rec_len;
 	dp = (DIR *)cp;
@@ -354,13 +361,13 @@ int my_mkdir(MINODE *pip, char *name){ /*{{{*/
 	dp->rec_len = tmp;
 	dp->name_len = strlen(name);
 	dp->inode = mip->ino;
-	strcpy(dp->name, name);
+	strncpy(dp->name, name, strlen(name));
 	/*
 	for (i = 0; i < dp->name_len; i++) {
 		dp->name[i] = name[i];
 	}*/
 
-	put_block(dev, pip->INODE.i_block[0]*BLOCK_SIZE, SEEK_SET);
+	put_block(dev, pip->INODE.i_block[0], buff);
 
 	pip->dirty = 1;
 	pip->refCount++;
@@ -402,7 +409,7 @@ unsigned long ialloc(int dev){ /*{{{*/
 
 	get_block(dev, IBITMAP, buff);
 
-	for (i = 0; i < 1024*8; i++) {
+	for (i = 1; i < 1024*8; i++) {
 		if(tstbit(buff, i)==0){
 			setbit(buff, i);
 			put_block(dev, IBITMAP, buff);
@@ -427,11 +434,11 @@ unsigned long balloc(int dev) /*{{{*/
 	lseek(dev, BBITMAP, SEEK_SET);
 	get_block(dev, BBITMAP, buff);
 
-	for (i = 0; i < 1024*8; i++) {
+	for (i = 1; i < 1024*8; i++) {
 		if(tstbit(buff, i)==0){
 			setbit(buff,i);
 			put_block(dev, BBITMAP, buff);
-			return (i+1);
+			return (i+100);
 		}
 	}
 	return 0;
@@ -443,6 +450,76 @@ void bdealloc(int dev, unsigned long ino) /*{{{*/
 	get_block(dev, BBITMAP, buff);
 	clearbit(buff, ino-1);
 	put_block(dev, BBITMAP, buff);
+} /*}}}*/
+
+
+void ls(char *pathname, PROC *parent) { /*{{{*/
+    INODE *cwd = calloc(sizeof(INODE), 1);
+    char path[128];
+    strncpy(path, pathname, 128);
+    int inodeIndex, seek;
+
+	if(pathname[0] != '/')
+		pathname[0] == '/';
+
+	if(pathname[0] == '/') {
+        strncpy(path, path+1, 127);
+        char *token = strtok(path, "/");
+        memcpy(cwd, &root->INODE, sizeof(INODE));
+
+        while(token !=NULL) {
+            inodeIndex = search(cwd, token);
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
+										(inodeIndex-1)%8 * 128;
+
+            lseek(fd, seek,SEEK_SET);
+
+            read(fd, cwd, sizeof(INODE));
+            token = strtok(NULL, "/");
+
+        }
+        printdir(cwd);
+        return;
+
+    } else if(pathname[0] <= 0) {
+        printdir(&parent->cwd->INODE);
+        return;
+
+    } else {
+
+
+        char *token = strtok(path, "/");
+        memcpy(cwd, &parent->cwd->INODE, sizeof(INODE));
+
+        while(token !=NULL) {
+            inodeIndex = search(cwd, token);
+			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
+										(inodeIndex-1)%8 * 128;
+			lseek(fd, seek, SEEK_SET);
+            read(fd, cwd, sizeof(INODE));
+            token = strtok(NULL, "/");
+        }
+    }
+} /*}}}*/
+
+void printdir(INODE *inodePtr) { /*{{{*/
+    int data_block = inodePtr->i_block[0];
+    DIR *dp;
+    lseek(fd, BLOCK_SIZE*data_block, SEEK_SET);
+    read(fd, buff, BLOCK_SIZE);
+    dp = (DIR *)buff;
+    char *cp = buff;
+
+    while(cp < buff + 1024) {
+        char name[dp->name_len];
+        memcpy(name, dp->name, dp->name_len+1);
+        name[dp->name_len]='\0';
+
+        printf("%d\t%d\t%d\t%s\n", dp->inode, dp->rec_len, dp->name_len, name);
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
+    }
+    return;
 } /*}}}*/
 
 #endif

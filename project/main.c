@@ -31,7 +31,7 @@ int main(int argc, const char *argv[])
 //				pwd(cwd);
 				break;
 			case 3 :
-//				list_dir();
+				ls(path, p0);
 				break;
 			case 4 :
 //				mount();
