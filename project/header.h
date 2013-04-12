@@ -21,6 +21,7 @@ unsigned long balloc(int dev);
 void bdealloc(int dev, unsigned long ino);
 void ls(char *pathname, PROC *parent);
 void printdir(INODE *inodePtr);
+void cd(char *pathname);
 
 PROC *running;
 PROC *p0;
@@ -173,6 +174,10 @@ unsigned long getino(int *dev, char *pathname){ /*{{{*/
 
 } /*}}}*/
 
+unsigned long newgetino(int *dev, char *pathname){
+	
+
+}
 void print_block(int dev, int block){ /*{{{*/
 	int i,j;
 	char arr[1024];
@@ -385,8 +390,9 @@ unsigned long search(INODE *inodePtr, char *name) /*{{{*/
 	for (i = 0; i < 12; i++) {
 		cp = buff;
 		dp = (DIR *) buff;
-		lseek(fd, inodePtr->i_block[i]*1024, SEEK_SET);
+		lseek(fd, inodePtr->i_block[i]*BLOCK_SIZE, SEEK_SET);
 		read(fd, buff, 1024);
+		
 		while(cp < buff + 1024){
 			for (j = 0; j < dp->name_len; j++) {
 				tmp[j]=(char)dp->name[j];
@@ -452,15 +458,12 @@ void bdealloc(int dev, unsigned long ino) /*{{{*/
 	put_block(dev, BBITMAP, buff);
 } /*}}}*/
 
-
 void ls(char *pathname, PROC *parent) { /*{{{*/
     INODE *cwd = calloc(sizeof(INODE), 1);
     char path[128];
     strncpy(path, pathname, 128);
     int inodeIndex, seek;
 
-	if(pathname[0] != '/')
-		pathname[0] == '/';
 
 	if(pathname[0] == '/') {
         strncpy(path, path+1, 127);
@@ -481,25 +484,11 @@ void ls(char *pathname, PROC *parent) { /*{{{*/
         printdir(cwd);
         return;
 
-    } else if(pathname[0] <= 0) {
+    } else {
         printdir(&parent->cwd->INODE);
         return;
 
-    } else {
-
-
-        char *token = strtok(path, "/");
-        memcpy(cwd, &parent->cwd->INODE, sizeof(INODE));
-
-        while(token !=NULL) {
-            inodeIndex = search(cwd, token);
-			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
-										(inodeIndex-1)%8 * 128;
-			lseek(fd, seek, SEEK_SET);
-            read(fd, cwd, sizeof(INODE));
-            token = strtok(NULL, "/");
-        }
-    }
+   }
 } /*}}}*/
 
 void printdir(INODE *inodePtr) { /*{{{*/
@@ -521,5 +510,17 @@ void printdir(INODE *inodePtr) { /*{{{*/
     }
     return;
 } /*}}}*/
+
+void cd(char *pathname) /*{{{*/
+{
+	unsigned long ino = getino((int *)fd, pathname);
+	MINODE *mp = iget(fd, ino);
+	iput(running->cwd);
+	running->cwd = mp;
+	return;
+
+} /*}}}*/
+
+
 
 #endif

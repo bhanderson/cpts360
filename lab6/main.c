@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) { /*{{{*/
 
 
 
-
+ /*{{{*/
 /*
 
 //    int i,cmd;
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) { /*{{{*/
                 printf("invalid command\n");
                 break;
             }
-        }*/
+        }*/ /*}}}*/
     return 0;
 } /* end main */ /*}}}*/
 

@@ -25,13 +25,13 @@ int main(int argc, const char *argv[])
 				make_dir();
 				break;
 			case 1 :
-//				change_dir();
+				cd(path);
 				break;
 			case 2 :
 //				pwd(cwd);
 				break;
 			case 3 :
-				ls(path, p0);
+				ls(path, running);
 				break;
 			case 4 :
 //				mount();
