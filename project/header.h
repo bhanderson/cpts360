@@ -57,6 +57,10 @@ void init(){ /*{{{*/
 	return;
 } /*}}}*/
 
+/* takes in a diskname path and opens it, stores superblock and group descriptor
+ * block is sp and gp respectively, also check to see if file is ext2 and exits
+ * if it is not sets root to root of fd and sets running proc
+ */
 void mount_root( char *path ){ /*{{{*/
 	fd = open(path, O_RDWR );
 	lseek(fd, BLOCK_SIZE, SEEK_SET );
@@ -76,6 +80,10 @@ void mount_root( char *path ){ /*{{{*/
 	running = p1;
 } /*}}}*/
 
+/* this function looks for the inode in the minode array and returns.  if it
+ * cannot find the minode it loads it from dev and returns the location in
+ * minode array.  
+ */
 MINODE *iget(int dev, unsigned long ino){ /*{{{*/
 	int i=0, freeNode=0, block=0, pos=0;
 	freeNode=0;
@@ -106,6 +114,8 @@ MINODE *iget(int dev, unsigned long ino){ /*{{{*/
 	return &minode[freeNode];
 } /*}}}*/
 
+/* takes a minode * and writes it to fd
+ */
 void iput(MINODE *mip){ /*{{{*/
 	int block, pos;
 	mip->refCount--;
@@ -124,17 +134,25 @@ void iput(MINODE *mip){ /*{{{*/
 	return;
 } /*}}}*/
 
+/* gets a block of data from dev and stores it to buf
+ */
 void get_block(int dev, int block, char *buf){ /*{{{*/
 	lseek(dev,(long)BLOCK_SIZE*block,SEEK_SET);
 	read(dev, buf, BLOCK_SIZE);
 } /*}}}*/
 
+/* puts a block of data from buf and stores it to fd
+ */
 void put_block(int dev, int block, char *buf){ /*{{{*/
 	lseek(dev, BLOCK_SIZE*block, SEEK_SET);
 	write(dev, buf, BLOCK_SIZE);
 	return;
 } /*}}}*/
 
+/* traverses the pathname to the last point in pathaname and returns the inode
+ * number of that inode 
+ * TODO error checking, and cases
+ */
 unsigned long getino(int *dev, char *pathname){ /*{{{*/
 	INODE *cwd = malloc(sizeof(INODE));
 	char path[128], *token;
@@ -151,9 +169,9 @@ unsigned long getino(int *dev, char *pathname){ /*{{{*/
 			inodeIndex = search(cwd, token);
 			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
 				(inodeIndex-1)%8 * 128;
-			lseek(*dev, seek, SEEK_SET);
+			lseek(fd, seek, SEEK_SET);
 
-			read(*dev, cwd, sizeof(INODE));
+			read(fd, cwd, sizeof(INODE));
 			token = strtok(NULL, "/");
 		}
 		return inodeIndex;
@@ -174,10 +192,8 @@ unsigned long getino(int *dev, char *pathname){ /*{{{*/
 
 } /*}}}*/
 
-unsigned long newgetino(int *dev, char *pathname){
-	
-
-}
+/* unused function to print the binary of a block of data in dev
+ */
 void print_block(int dev, int block){ /*{{{*/
 	int i,j;
 	char arr[1024];
@@ -189,6 +205,9 @@ void print_block(int dev, int block){ /*{{{*/
 	}
 } /*}}}*/
 
+/* takes in a command and checks it to the list of commands to return an integer
+ * value to use in the switch statement in main
+ */
 int findCmd(char *cname){ /*{{{*/
 	if(strcmp(cname, "mkdir")==0)
 		return 0;
@@ -265,6 +284,9 @@ int findCmd(char *cname){ /*{{{*/
 	return -1;
 } /*}}}*/
 
+/* the frontend to mymkdir, gets the pathname and finds the inode pointer of
+ * the dirname parent and passes the pip along with the child dirname
+ */
 int make_dir(){ /*{{{*/
 	char line[128], parent[64], child[64], temp[64];
 	int dev, ino, r;
@@ -409,6 +431,9 @@ unsigned long search(INODE *inodePtr, char *name) /*{{{*/
 	return 0;
 } /*}}}*/
 
+/* finds and allocates a free ibitmap bit to correspond to the inode blocks and 
+ * returns the bit number
+ */
 unsigned long ialloc(int dev){ /*{{{*/
 	int i;
 	lseek(dev, BLOCK_SIZE*IBITMAP, SEEK_SET);
@@ -444,7 +469,7 @@ unsigned long balloc(int dev) /*{{{*/
 		if(tstbit(buff, i)==0){
 			setbit(buff,i);
 			put_block(dev, BBITMAP, buff);
-			return (i+100);
+			return (i);
 		}
 	}
 	return 0;
@@ -459,57 +484,32 @@ void bdealloc(int dev, unsigned long ino) /*{{{*/
 } /*}}}*/
 
 void ls(char *pathname, PROC *parent) { /*{{{*/
-    INODE *cwd = calloc(sizeof(INODE), 1);
-    char path[128];
-    strncpy(path, pathname, 128);
-    int inodeIndex, seek;
+	MINODE *mp;
+	char path[128], buf[BLOCK_SIZE], *cp, name[128];
+	int ino, i;
+	INODE *ip;
+	DIR *dp;
 
-
-	if(pathname[0] == '/') {
-        strncpy(path, path+1, 127);
-        char *token = strtok(path, "/");
-        memcpy(cwd, &root->INODE, sizeof(INODE));
-
-        while(token !=NULL) {
-            inodeIndex = search(cwd, token);
-			seek = ((inodeIndex-1)/8 + gp->bg_inode_table)*1024 +
-										(inodeIndex-1)%8 * 128;
-
-            lseek(fd, seek,SEEK_SET);
-
-            read(fd, cwd, sizeof(INODE));
-            token = strtok(NULL, "/");
-
-        }
-        printdir(cwd);
-        return;
-
-    } else {
-        printdir(&parent->cwd->INODE);
-        return;
-
-   }
-} /*}}}*/
-
-void printdir(INODE *inodePtr) { /*{{{*/
-    int data_block = inodePtr->i_block[0];
-    DIR *dp;
-    lseek(fd, BLOCK_SIZE*data_block, SEEK_SET);
-    read(fd, buff, BLOCK_SIZE);
-    dp = (DIR *)buff;
-    char *cp = buff;
-
-    while(cp < buff + 1024) {
-        char name[dp->name_len];
-        memcpy(name, dp->name, dp->name_len+1);
-        name[dp->name_len]='\0';
-
-        printf("%d\t%d\t%d\t%s\n", dp->inode, dp->rec_len, dp->name_len, name);
-        cp += dp->rec_len;
-        dp = (DIR *)cp;
-    }
-    return;
-} /*}}}*/
+	strncpy(path, pathname, 128);
+	ino = getino((int *)fd, path);
+	mp = iget(fd, ino);
+	
+	for (i = 0; i < 12; i++) {
+		if( mp->INODE.i_block[i] == 0)
+			break;
+		get_block( fd, mp->INODE.i_block[i], (char *)&buf );
+		cp = (char *)buf;
+		dp = (DIR *)cp;
+		printf("inode\trec_len\tname_len\tname\n");
+		while(cp < buf + 1024){
+			strncpy( name, dp->name, dp->name_len );
+			name[dp->name_len] = 0;
+			printf("%d\t%d\t%d\t%s\n", dp->inode, dp->rec_len, dp->name_len, name);
+			cp+= dp->rec_len;
+			dp = (DIR *)cp;
+		}
+	}
+}
 
 void cd(char *pathname) /*{{{*/
 {
