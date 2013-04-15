@@ -7,7 +7,7 @@ void init();
 void mount_root(char *path);
 MINODE *iget(int dev, unsigned long ino);
 void iput(MINODE *mip);
-void get_block(int dev, int block, char *buf);
+void get_block(int dev, unsigned long block, char *buf);
 void put_block(int dev, int block, char *buf);
 unsigned long getino(int *dev, char *pathname);
 void print_block(int dev, int block);
@@ -137,7 +137,7 @@ void iput(MINODE *mip){ /*{{{*/
 
 /* gets a block of data from dev and stores it to buf
  */
-void get_block(int dev, int block, char *buf){ /*{{{*/
+void get_block(int dev, unsigned long block, char *buf){ /*{{{*/
 	lseek(dev,(long)BLOCK_SIZE*block,SEEK_SET);
 	read(dev, buf, BLOCK_SIZE);
 } /*}}}*/
@@ -456,7 +456,7 @@ void idealloc(int dev, unsigned long ino) /*{{{*/
 	put_block(dev, IBITMAP, buff);
 	return;
 } /*}}}*/
-/*
+
 unsigned long balloc(int dev)
 {
 	int iter = 0, ind = 0, pos = 0, spaceCount = 0,
@@ -483,17 +483,18 @@ unsigned long balloc(int dev)
 	return
 		-1;
 }
-*/
 
-unsigned long balloc(int dev) /*{{{*/
-{
+
+//unsigned long balloc(int dev) /*{{{*/
+/*{
   int i;
-  get_block(dev, BBITMAP, buff);
+  char buf[1024];
+  get_block(dev, BBITMAP, buf);
 
   for (i = 0; i < sp->s_blocks_count; i++) {
-	  if(tstbit(buff, i)==0){
-		  setbit(buff,i);
-		  put_block(dev, BBITMAP, buff);
+	  if(tstbit(buf, i)==0){
+		  setbit(buf,i);
+		  put_block(dev, BBITMAP, buf);
 		  return (i);
 	  }
   }
