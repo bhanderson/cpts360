@@ -119,17 +119,18 @@ MINODE *iget(int dev, unsigned long ino){ /*{{{*/
 void iput(MINODE *mip){ /*{{{*/
 	int block, pos;
 	mip->refCount--;
-	if(mip->refCount > 0)
-		return;
-	if(mip->dirty == 0)
-		return;
+	//	if(mip->refCount > 0)
+	//		return;
+	//	if(mip->dirty == 0)
+	//		return;
 	// else
 	block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
 	pos = (mip->ino - 1) % INODES_PER_BLOCK;
 
+
 	get_block(fd, block, (char *)&buff);
 	lseek((int)&buff, pos, SEEK_SET);
-	write((int)&buff, mip, sizeof(INODE));
+	write((int)&buff, &mip->INODE, sizeof(INODE));
 	put_block(fd, block, buff);
 	return;
 } /*}}}*/
@@ -320,6 +321,7 @@ int my_mkdir(MINODE *pip, char *name){ /*{{{*/
 	int inumber, bnumber, dev,i ;
 	char *cp;
 	MINODE *mip;
+	DIR *dp;
 
 	dev = pip->dev;
 
@@ -379,8 +381,6 @@ int my_mkdir(MINODE *pip, char *name){ /*{{{*/
 	int tmp = dp->rec_len - need_length;
 	// change last dir rec_len to needed length 
 	dp->rec_len = need_length;
-	// generate rec_len of new dir by sub rec len of last dir
-	//tmp = tmp - dp->rec_len; not needed?
 
 	cp += dp->rec_len;
 	dp = (DIR *)cp;
@@ -389,15 +389,13 @@ int my_mkdir(MINODE *pip, char *name){ /*{{{*/
 	dp->name_len = strlen(name);
 	dp->inode = mip->ino;
 	strncpy(dp->name, name, strlen(name));
-	/*
-	   for (i = 0; i < dp->name_len; i++) {
-	   dp->name[i] = name[i];
-	   }*/
 
 	put_block(dev, pip->INODE.i_block[0], buff);
 
 	pip->dirty = 1;
 	pip->refCount++;
+	pip->INODE.i_links_count++;
+	pip->INODE.i_atime = time(0);
 	iput(pip);
 	return 0;
 
@@ -458,22 +456,49 @@ void idealloc(int dev, unsigned long ino) /*{{{*/
 	put_block(dev, IBITMAP, buff);
 	return;
 } /*}}}*/
+/*
+unsigned long balloc(int dev)
+{
+	int iter = 0, ind = 0, pos = 0, spaceCount = 0,
+		inodeCount = 0;
+	char buf[1024];
+
+	inodeCount = sp->s_blocks_count; // /	(BLOCK_SIZE*128);
+
+
+	get_block( dev, (gp->bg_block_bitmap),(char*)&buf );
+
+	for( iter = 0; iter < inodeCount; iter++ )
+	{
+		if (tstbit((char*)&buf,iter) ==0 )
+		{
+			setbit((char*)&buf,iter);
+			put_block(dev,gp->bg_block_bitmap,(char*)&buf);
+			printf("BALLOCRETURNING:%d\n",iter);
+			return
+				iter;
+		}
+	}
+
+	return
+		-1;
+}
+*/
 
 unsigned long balloc(int dev) /*{{{*/
 {
-	int i;
-	lseek(dev, BBITMAP, SEEK_SET);
-	get_block(dev, BBITMAP, buff);
+  int i;
+  get_block(dev, BBITMAP, buff);
 
-	for (i = 1; i < 1024*8; i++) {
-		if(tstbit(buff, i)==0){
-			setbit(buff,i);
-			put_block(dev, BBITMAP, buff);
-			return (i);
-		}
-	}
-	return 0;
-} /*}}}*/
+  for (i = 0; i < sp->s_blocks_count; i++) {
+	  if(tstbit(buff, i)==0){
+		  setbit(buff,i);
+		  put_block(dev, BBITMAP, buff);
+		  return (i);
+	  }
+  }
+  return 0;
+  } /*}}}*/
 
 void bdealloc(int dev, unsigned long ino) /*{{{*/
 {
@@ -576,57 +601,26 @@ void ls(char *pathname, PROC *parent) { /*{{{*/
 }
 /*}}}*/
 
-void
-printdir(INODE
-		*inodePtr)
+void printdir(INODE *inodePtr) /*{{{*/
 {
-	/*{{{*/
-	int
-		data_block
-		=
-		inodePtr->i_block[0];
+	int	data_block=inodePtr->i_block[0];
 	DIR
 		*dp;
-	lseek(fd,
-			BLOCK_SIZE*data_block,
-			SEEK_SET);
-	read(fd,
-			buff,
-			BLOCK_SIZE);
-	dp
-		=
-		(DIR
-		 *)buff;
+	lseek(fd,BLOCK_SIZE*data_block,SEEK_SET);
+	read(fd,buff,BLOCK_SIZE);
+	dp=(DIR *)buff;
 	char
-		*cp
-		=
-		buff;
+		*cp=buff;
 
-	while(cp
-			<
-			buff
-			+
-			1024)
+	while(cp<buff+1024)
 	{
-		char
-			name[dp->name_len];
-		memcpy(name,
-				dp->name,
-				dp->name_len+1);
+		char name[dp->name_len];
+		memcpy(name,dp->name,dp->name_len+1);
 		name[dp->name_len]='\0';
 
-		printf("%d\t%d\t%d\t%s\n",
-				dp->inode,
-				dp->rec_len,
-				dp->name_len,
-				name);
-		cp
-			+=
-			dp->rec_len;
-		dp
-			=
-			(DIR
-			 *)cp;
+		printf("%d\t%d\t%d\t%s\n",dp->inode,dp->rec_len,dp->name_len,name);
+		cp+=dp->rec_len;
+		dp=(DIR *)cp;
 	}
 	return;
 }
