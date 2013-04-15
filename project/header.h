@@ -119,6 +119,7 @@ MINODE *iget(int dev, unsigned long ino){ /*{{{*/
 void iput(MINODE *mip){ /*{{{*/
 	int block, pos;
 	mip->refCount--;
+	INODE *itmp;
 	//	if(mip->refCount > 0)
 	//		return;
 	//	if(mip->dirty == 0)
@@ -127,10 +128,13 @@ void iput(MINODE *mip){ /*{{{*/
 	block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
 	pos = (mip->ino - 1) % INODES_PER_BLOCK;
 
-
+	itmp = ( (INODE *)buff + pos);
 	get_block(fd, block, (char *)&buff);
-	lseek((int)&buff, pos, SEEK_SET);
-	write((int)&buff, &mip->INODE, sizeof(INODE));
+	memcpy( itmp, &mip->INODE, 128 );
+	
+
+//	lseek((int)&buff, pos, SEEK_SET);
+//	write((int)&buff, &mip->INODE, sizeof(INODE));
 	put_block(fd, block, buff);
 	return;
 } /*}}}*/
@@ -432,6 +436,7 @@ unsigned long search(INODE *inodePtr, char *name) /*{{{*/
 /* finds and allocates a free ibitmap bit to correspond to the inode blocks and 
  * returns the bit number
  */
+// working dont fucking touch
 unsigned long ialloc(int dev){ /*{{{*/
 	int i;
 	lseek(dev, BLOCK_SIZE*IBITMAP, SEEK_SET);
@@ -457,33 +462,29 @@ void idealloc(int dev, unsigned long ino) /*{{{*/
 	return;
 } /*}}}*/
 
-unsigned long balloc(int dev)
+// working dont fucking touch
+unsigned long balloc( int dev ) /*{{{*/
 {
-	int iter = 0, ind = 0, pos = 0, spaceCount = 0,
-		inodeCount = 0;
+	int iter = 0, ind = 0, pos = 0, spaceCount = 0, inodeCount = 0;
 	char buf[1024];
 
 	inodeCount = sp->s_blocks_count; // /	(BLOCK_SIZE*128);
 
-
 	get_block( dev, (gp->bg_block_bitmap),(char*)&buf );
 
-	for( iter = 0; iter < inodeCount; iter++ )
+	for( iter = 0; iter < inodeCount; iter++  )
 	{
 		if (tstbit((char*)&buf,iter) ==0 )
 		{
-			setbit((char*)&buf,iter);
+			setbit((char*)&buf,iter );
 			put_block(dev,gp->bg_block_bitmap,(char*)&buf);
-			printf("BALLOCRETURNING:%d\n",iter);
-			return
-				iter;
+			printf("BALLOCRETURNING:%d\n",iter+1);
+			return iter+1;
 		}
 	}
 
-	return
-		-1;
-}
-
+	return -1;
+} /*}}}*/
 
 //unsigned long balloc(int dev) /*{{{*/
 /*{
@@ -492,11 +493,11 @@ unsigned long balloc(int dev)
   get_block(dev, BBITMAP, buf);
 
   for (i = 0; i < sp->s_blocks_count; i++) {
-	  if(tstbit(buf, i)==0){
-		  setbit(buf,i);
-		  put_block(dev, BBITMAP, buf);
-		  return (i);
-	  }
+  if(tstbit(buf, i)==0){
+  setbit(buf,i);
+  put_block(dev, BBITMAP, buf);
+  return (i);
+  }
   }
   return 0;
   } /*}}}*/
