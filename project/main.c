@@ -25,10 +25,10 @@ int main(int argc, const char *argv[])
 				make_dir();
 				break;
 			case 1 :
-				cd(path);
+				do_cd(path);
 				break;
 			case 2 :
-//				pwd(cwd);
+				do_pwd();
 				break;
 			case 3 :
 				ls(path, running);
@@ -79,7 +79,7 @@ int main(int argc, const char *argv[])
 //				rewind_file();
 				break;
 			case 19:
-//				mystat();
+				mystat(path);
 				break;
 			case 20:
 //				pm();
