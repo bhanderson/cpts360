@@ -172,7 +172,6 @@ unsigned long getino(int *dev, char *pathname) /*{{{*/
 	INODE *cwd = malloc(sizeof(INODE));
 	char path[128], *token;
 	int inodeIndex, seek;
-
 	strncpy(path, pathname, 128);
 
 	if(pathname[0] == '/'){
@@ -192,10 +191,14 @@ unsigned long getino(int *dev, char *pathname) /*{{{*/
 		return inodeIndex;
 	}else {
 		token = strtok(path, "/");
-		cwd = &root->INODE;
+		cwd = &running->cwd->INODE;
 
 		while(token != NULL) {
 			inodeIndex = search(cwd, token);
+			if(inodeIndex == 0){
+			perror("cannot find that inode");
+				return 0;
+			}
 			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
 				(inodeIndex-1)%8 * 128;
 			lseek(*dev, seek, SEEK_SET);
@@ -518,7 +521,7 @@ void bdealloc(int dev, unsigned long ino) /*{{{*/
 void ls(char *pathname, PROC *parent) /*{{{*/
 {
 	INODE *cwd = calloc(sizeof(INODE), 1);
-	char path[128];
+	char path[128] = "\0";
 	strncpy(path, pathname, 128);
 	int inodeIndex, seek;
 // if ls fullpath

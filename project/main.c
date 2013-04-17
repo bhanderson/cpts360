@@ -18,6 +18,8 @@ int main(int argc, const char *argv[])
 		line[strlen(line)-1] = 0; // kill \r char at end
 		if(line[0]==0)
 			continue;
+		path[0] = '\0';
+		command[0]='\0';
 		sscanf(line, "%s %s", command, path);
 		cmd = findCmd(command);
 		switch(cmd){ /*{{{*/
