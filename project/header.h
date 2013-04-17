@@ -27,7 +27,8 @@ int do_pwd();
 void pwd(MINODE *wd);
 void mystat(char *path);
 int do_stat(char *path, struct stat *stPtr);
-
+void touch(char *path);
+void mychmod(char *path);
 PROC *running;
 PROC *p0;
 PROC *p1;
@@ -680,5 +681,38 @@ int do_stat(char *pathname, struct stat *stPtr) /*{{{*/
 	return 0;
 } /*}}}*/
 
+void touch(char *path) /*{{{*/
+{
+	unsigned long ino = getino((int *)fd, path);
+	MINODE *mip = iget(fd, ino);
+
+	mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
+	iput(mip);
+} /*}}}*/
+
+void mychmod(char *pathname) /*{{{*/
+{
+	char line[128];
+	int mode=0, i=0;
+	char perm[64];
+	for (i = 0; i < 64; i++) {
+		perm[i]=0;
+	}
+	unsigned long ino = getino((int *)fd, pathname);
+	MINODE *mip = iget(fd, ino);
+	printf("input the new mode: ");
+	fgets(line, 128, stdin);
+	line[strlen(line)-1]=0;
+	sscanf(line, "%s", perm);
+	printf("\nprevious permissions: %o\n", mip->INODE.i_mode);
+	mode = perm[0]-48 << 6;
+	mode |= perm[1]-48 << 3;
+	mode |= perm[2]-48;
+	printf("mode %d\n", mode);
+	mip->INODE.i_mode &= 0xFF000;
+	mip->INODE.i_mode |= mode;
+	printf("new permissions: %o\n", mip->INODE.i_mode);
+	return;
+} /*}}}*/
 
 #endif

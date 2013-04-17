@@ -91,7 +91,7 @@ int main(int argc, const char *argv[])
 //				access_file();
 				break;
 			case 23:
-//				chmod_file();
+				mychmod(path);
 				break;
 			case 24:
 //				chown_file();
