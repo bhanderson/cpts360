@@ -25,6 +25,8 @@ void printdir(INODE *inodePtr);
 int do_cd(char *pathname);
 int do_pwd();
 void pwd(MINODE *wd);
+void mystat(char *path);
+int do_stat(char *path, struct stat *stPtr);
 
 PROC *running;
 PROC *p0;
@@ -608,7 +610,7 @@ int do_cd(char *pathname) /*{{{*/
 int do_pwd() /*{{{*/
 {
 	pwd(running->cwd);
-	return;
+	return 0;
 } /*}}}*/
 
 void pwd(MINODE *wd) /*{{{*/
@@ -633,10 +635,11 @@ void pwd(MINODE *wd) /*{{{*/
 	return;
 } /*}}}*/
 
-void mystat(char *path){
+void mystat(char *path){ /*{{{*/
 	struct stat mystat;
-	do_stat(path, &mystat);
-}
+	int r = do_stat(path, &mystat);
+	return;
+} /*}}}*/
 
 int do_stat(char *pathname, struct stat *stPtr) /*{{{*/
 {
