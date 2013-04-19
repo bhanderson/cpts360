@@ -187,6 +187,8 @@ unsigned long getino(int dev, char *pathname) /*{{{*/
 
 		while(token !=NULL){
 			inodeIndex = search(cwd, token);
+			if(inodeIndex == 0)
+				return 0;
 			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
 				(inodeIndex-1)%8 * 128;
 			lseek(fd, seek, SEEK_SET);
@@ -451,6 +453,8 @@ unsigned long search(INODE *inodePtr, char *name) /*{{{*/
 			}else{
 				cp += dp->rec_len;
 				dp = (DIR *)cp;
+				if(dp->inode == 0)
+					return 0;
 			}
 		}
 	}
@@ -609,6 +613,10 @@ int do_cd(char *pathname) /*{{{*/
 		return 0;
 	}
 	int ino = getino(fd, pathname);
+	if(ino==0){
+		printf("directory doesn't exist\n");
+		return 0;
+	}
 	mip = iget(root->dev, ino);
 	//mip = iget (root->dev,ino);
 	if((mip->INODE.i_mode & 0100000) == 0100000){
