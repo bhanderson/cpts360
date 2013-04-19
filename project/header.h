@@ -13,7 +13,7 @@ void put_block(int dev, int block, char *buf);
 unsigned long getino(int dev, char *pathname);
 void print_block(int dev, int block);
 int findCmd(char *cname);
-int make_dir();
+int make_dir(char* path);
 int my_mkdir(MINODE *pip, char *name);
 unsigned long search(INODE *inodePtr, char *name);
 unsigned long ialloc(int dev);
@@ -24,7 +24,7 @@ void ls(char *pathname, PROC *parent);
 void printdir(INODE *inodePtr);
 int do_cd(char *pathname);
 int do_pwd();
-void pwd(MINODE *wd);
+void pwd(MINODE *wd,int childIno);
 void mystat(char *path);
 int do_stat(char *path, struct stat *stPtr);
 void touch(char *path);
@@ -103,19 +103,25 @@ MINODE *iget(int dev, unsigned long ino) /*{{{*/
 		}
 		if(minode[i].ino == ino){
 			minode[i].refCount ++;
+			//begin hacky test code
+			block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table;
+            pos = (ino-1) % INODES_PER_BLOCK;
+            get_block(fd, block, (char *)&buff);
+            memcpy(&minode[i].INODE, (((INODE*)buff) + pos),sizeof(INODE));
+            //end hacky test coe
 			return &minode[i];
 		}
 	}
 
 	// else it is not in the minode array so find it on the disk
-	block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table; // TODO + inode_table but 5 works
+	block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table;
 	pos = (ino-1) % INODES_PER_BLOCK;
 	get_block(fd, block, (char *)&buff);
 
 	minode[freeNode].dev = dev;
 	minode[freeNode].dirty = 0;
-	minode[freeNode].INODE = *( ((INODE*)buff) + pos); // david barajas c magic
 	minode[freeNode].ino = ino;
+	memcpy(&minode[freeNode].INODE, (((INODE*)buff) + pos),sizeof(INODE));
 	minode[freeNode].mounted = 0;
 	minode[freeNode].mountptr = NULL;
 	minode[freeNode].refCount = 1;
@@ -307,15 +313,16 @@ int findCmd(char *cname) /*{{{*/
 /* the frontend to mymkdir, gets the pathname and finds the inode pointer of
  * the dirname parent and passes the pip along with the child dirname
  */
-int make_dir() /*{{{*/
+int make_dir(char* path) /*{{{*/
 {
 	char line[128], parent[64], child[64], temp[64];
 	int dev, ino, r;
 	MINODE *pip;
 
-	printf("enter the pathname ");
-	fgets(line, 128, stdin);
-	line[strlen(line)-1]=0;
+	//printf("enter the pathname ");
+	//fgets(line, 128, stdin);
+	//line[strlen(line)-1]=0;
+	strcpy(line,path);
 	if(line[0] == '/')
 		dev = root->dev;
 	else
@@ -551,6 +558,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 
 // if ls cwd
 	else if(pathname[0]	<=0){
+	    printf("current dir: Ino %lu, Iblock[0]= %lu\n",parent->cwd->ino,parent->cwd->INODE.i_block[0]);
 		printdir(&parent->cwd->INODE);
 		return;
 	}
@@ -602,6 +610,7 @@ int do_cd(char *pathname) /*{{{*/
 	}
 	int ino = getino(fd, pathname);
 	mip = iget(root->dev, ino);
+	//mip = iget (root->dev,ino);
 	if((mip->INODE.i_mode & 0100000) == 0100000){
 		iput(mip);
 		printf("cannot cd to non dir\n");
@@ -613,29 +622,41 @@ int do_cd(char *pathname) /*{{{*/
 
 int do_pwd() /*{{{*/
 {
-	pwd(running->cwd);
+	pwd(running->cwd,0);
+	printf("\n");
 	return 0;
 } /*}}}*/
 
-void pwd(MINODE *wd) /*{{{*/
+void pwd(MINODE *wd, int childIno) /*{{{*/
 {
 	if(wd->ino == root->ino){
-		printf("/\n");
-		return;
+		printf("/");
 	}
-	char buf[1024], *cp;
+	char buf[1024], *cp,name[64];
 	DIR *dp;
-	MINODE *parentmip, *mip;
+	MINODE *parentmip;
 	//int block = (mip->ino -1) / INODES_PER_BLOCK + gp->bg_inode_table;
 
 	get_block(fd, wd->INODE.i_block[0], (char *)&buf);
 	dp = (DIR *)buf; // get first dir "."
-	cp = buff + dp->rec_len;
+	cp = buf + dp->rec_len;
 	dp = (DIR *)cp; // get second dir ".."
-//	ino = dp->inode; // get the inode number
-//	parentmip = iget(fd, ino);
-	pwd(parentmip);
-	printf("%s",dp->name);
+	if(wd->ino != root->ino){
+        int ino = dp->inode; // get the inode number
+	    parentmip = iget(fd, ino);
+		pwd(parentmip,wd->ino);
+	}
+	if (childIno!=0){
+	    while (dp->inode != childIno)
+	    {
+	        cp += dp->rec_len;
+            dp = (DIR *)cp; // get second dir ".."
+	    }
+	    strncpy(name,dp->name,dp->name_len);
+	    name[dp->name_len] = '\0';
+	    printf("%s/",name);
+	}
+
 	return;
 } /*}}}*/
 

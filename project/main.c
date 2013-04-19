@@ -24,7 +24,7 @@ int main(int argc, const char *argv[])
 		cmd = findCmd(command);
 		switch(cmd){ /*{{{*/
 			case 0 :
-				make_dir();
+				make_dir(path);
 				break;
 			case 1 :
 				do_cd(path);
