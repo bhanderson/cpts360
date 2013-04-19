@@ -10,7 +10,7 @@ MINODE *iget(int dev, unsigned long ino);
 void iput(MINODE *mip);
 void get_block(int dev, unsigned long block, char *buf);
 void put_block(int dev, int block, char *buf);
-unsigned long getino(int *dev, char *pathname);
+unsigned long getino(int dev, char *pathname);
 void print_block(int dev, int block);
 int findCmd(char *cname);
 int make_dir();
@@ -90,7 +90,7 @@ void mount_root( char *path ) /*{{{*/
 
 /* this function looks for the inode in the minode array and returns.  if it
  * cannot find the minode it loads it from dev and returns the location in
- * minode array.  
+ * minode array.
  */
 MINODE *iget(int dev, unsigned long ino) /*{{{*/
 {
@@ -164,10 +164,10 @@ void put_block(int dev, int block, char *buf) /*{{{*/
 } /*}}}*/
 
 /* traverses the pathname to the last point in pathaname and returns the inode
- * number of that inode 
+ * number of that inode
  * TODO error checking, and cases
  */
-unsigned long getino(int *dev, char *pathname) /*{{{*/
+unsigned long getino(int dev, char *pathname) /*{{{*/
 {
 	INODE *cwd = malloc(sizeof(INODE));
 	char path[128], *token;
@@ -201,7 +201,7 @@ unsigned long getino(int *dev, char *pathname) /*{{{*/
 			}
 			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
 				(inodeIndex-1)%8 * 128;
-			lseek(*dev, seek, SEEK_SET);
+			lseek(dev, seek, SEEK_SET);
 			read(fd, cwd, sizeof(INODE));
 			token = strtok(NULL, "/");
 		}
@@ -327,7 +327,7 @@ int make_dir() /*{{{*/
 	strcpy(temp, line);
 	strcpy(child, basename(temp));
 
-	ino = getino(&dev, parent);
+	ino = getino(dev, parent);
 	pip = iget(dev, ino);
 
 	r = my_mkdir(pip,child);
@@ -400,7 +400,7 @@ int my_mkdir(MINODE *pip, char *name) /*{{{*/
 	int need_length = 4*((8+dp->name_len+3)/4);
 	// storing the lenght of the new last dir
 	int tmp = dp->rec_len - need_length;
-	// change last dir rec_len to needed length 
+	// change last dir rec_len to needed length
 	dp->rec_len = need_length;
 
 	cp += dp->rec_len;
@@ -450,7 +450,7 @@ unsigned long search(INODE *inodePtr, char *name) /*{{{*/
 	return 0;
 } /*}}}*/
 
-/* finds and allocates a free ibitmap bit to correspond to the inode blocks and 
+/* finds and allocates a free ibitmap bit to correspond to the inode blocks and
  * returns the bit number
  * working dont touch
  */
@@ -600,7 +600,7 @@ int do_cd(char *pathname) /*{{{*/
 		running->cwd = iget(root->dev, 2);
 		return 0;
 	}
-	int ino = getino((int *)fd, pathname);
+	int ino = getino(fd, pathname);
 	mip = iget(root->dev, ino);
 	if((mip->INODE.i_mode & 0100000) == 0100000){
 		iput(mip);
@@ -647,7 +647,7 @@ void mystat(char *path){ /*{{{*/
 
 int do_stat(char *pathname, struct stat *stPtr) /*{{{*/
 {
-	unsigned long ino = getino((int *)fd, pathname);
+	unsigned long ino = getino(fd, pathname);
 	MINODE *mip = iget(fd, ino);
 //	memcpy(destination, source, size)
 	stPtr->st_dev = fd;
@@ -686,7 +686,7 @@ int do_stat(char *pathname, struct stat *stPtr) /*{{{*/
 
 void touch(char *path) /*{{{*/
 {
-	unsigned long ino = getino((int *)fd, path);
+	unsigned long ino = getino(fd, path);
 	MINODE *mip = iget(fd, ino);
 
 	mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
@@ -701,7 +701,7 @@ void mychmod(char *pathname) /*{{{*/
 	for (i = 0; i < 64; i++) {
 		perm[i]=0;
 	}
-	unsigned long ino = getino((int *)fd, pathname);
+	unsigned long ino = getino(fd, pathname);
 	MINODE *mip = iget(fd, ino);
 	printf("input the new mode: ");
 	fgets(line, 128, stdin);
