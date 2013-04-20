@@ -562,7 +562,8 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 
 // if ls cwd
 	else if(pathname[0]	<=0){
-	    printf("current dir: Ino %lu, Iblock[0]= %lu\n",parent->cwd->ino,parent->cwd->INODE.i_block[0]);
+	    printf("current dir: Ino %lu, Iblock[0]= %lu\n",(long unsigned
+		int)parent->cwd->ino,(long unsigned int)parent->cwd->INODE.i_block[0]);
 		printdir(&parent->cwd->INODE);
 		return;
 	}
