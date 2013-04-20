@@ -27,7 +27,7 @@ int do_pwd();
 void pwd(MINODE *wd,int childIno);
 void mystat(char *path);
 int do_stat(char *path, struct stat *stPtr);
-void touch(char *path);
+void do_touch(char *path);
 void mychmod(char *path);
 PROC *running;
 PROC *p0;
@@ -286,27 +286,27 @@ int findCmd(char *cname) /*{{{*/
 	if(strcmp(cname, "chmod")==0)
 		return 23;
 	if(strcmp(cname, "chown")==0)
-		return 23;
+		return 24;
 	if(strcmp(cname, "cs")==0)
-		return 23;
+		return 25;
 	if(strcmp(cname, "fork")==0)
-		return 23;
+		return 26;
 	if(strcmp(cname, "ps")==0)
-		return 23;
+		return 27;
 	if(strcmp(cname, "kill")==0)
-		return 23;
+		return 28;
 	if(strcmp(cname, "quit")==0)
-		return 23;
+		return 29;
 	if(strcmp(cname, "touch")==0)
-		return 23;
+		return 30;
 	if(strcmp(cname, "sync")==0)
-		return 23;
+		return 31;
 	if(strcmp(cname, "link")==0)
-		return 23;
+		return 32;
 	if(strcmp(cname, "unlink")==0)
-		return 23;
+		return 33;
 	if(strcmp(cname, "symlink")==0)
-		return 23;
+		return 34;
 	if(strcmp(cname, "exit")==0)
 		return 99;
 	return -1;
@@ -714,7 +714,7 @@ int do_stat(char *pathname, struct stat *stPtr) /*{{{*/
 	return 0;
 } /*}}}*/
 
-void touch(char *path) /*{{{*/
+void do_touch(char *path) /*{{{*/
 {
 	unsigned long ino = getino(fd, path);
 	MINODE *mip = iget(fd, ino);

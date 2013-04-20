@@ -114,7 +114,7 @@ int main(int argc, const char *argv[])
 //				quit();
 				break;
 			case 30:
-//				do_touch();
+				do_touch(path);
 				break;
 			case 31:
 //				sync();
