@@ -107,11 +107,11 @@ MINODE *iget(int dev, unsigned long ino) /*{{{*/
 		if(minode[i].ino == ino){
 			minode[i].refCount ++;
 			//begin hacky test code
-			block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table;
+/*			block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table;
             pos = (ino-1) % INODES_PER_BLOCK;
             get_block(fd, block, (char *)&buff);
             memcpy(&minode[i].INODE, (((INODE*)buff) + pos),sizeof(INODE));
-            //end hacky test coe
+ */           //end hacky test coe
 			return &minode[i];
 		}
 	}
@@ -186,7 +186,8 @@ unsigned long getino(int dev, char *pathname) /*{{{*/
 	if(pathname[0] == '/'){
 		strncpy(path, path+1, 127); // remove root symbol
 		token = strtok(path, "/");
-		cwd = &root->INODE;
+		//cwd = &root->INODE;
+		memcpy(cwd, &root->INODE, sizeof(INODE));
 
 		while(token !=NULL){
 			inodeIndex = search(cwd, token);
@@ -202,7 +203,8 @@ unsigned long getino(int dev, char *pathname) /*{{{*/
 		return inodeIndex;
 	}else {
 		token = strtok(path, "/");
-		cwd = &running->cwd->INODE;
+		//cwd = &running->cwd->INODE;
+		memcpy(cwd, &running->cwd->INODE, sizeof(INODE));
 
 		while(token != NULL) {
 			inodeIndex = search(cwd, token);
