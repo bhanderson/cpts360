@@ -607,7 +607,7 @@ void printdir(INODE *inodePtr) /*{{{*/
 
 
 
-		//printf("%d\t%d\t%d\t%s\n",dp->inode,dp->rec_len,dp->name_len,name);
+		printf("%d\t%d\t%d\t%s\n",dp->inode,dp->rec_len,dp->name_len,name);
 		cp+=dp->rec_len;
 		dp=(DIR *)cp;
 	}
@@ -883,15 +883,17 @@ int do_link(char* oldpath,char* newpath)
 	DIR * dp;
 	MINODE * pip,*targetip;
 	int parent;
-	int i = strrchr(newpath, '/');
-	if (i == 0){
+	cp = strrchr(newpath, '/');
+	if (cp == NULL){
 		parent = running->cwd->ino; // same dir
 		strcpy(name,newpath);
 	}
 	else{
-		strncpy(parentdir,newpath,i);
+	    //this
+	    *(cp) = '\0';
+		strcpy(parentdir, newpath);
 		parent = getino(fd,parentdir);
-		strcpy(name,newpath+i+1);
+		strcpy(name,cp+1);
 	}
 	//get the ino
 	int target = getino(fd,oldpath);

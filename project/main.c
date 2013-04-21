@@ -2,7 +2,7 @@
 
 int main(int argc, const char *argv[])
 {
-	char line[128], command[32], path[64], filepath[64];
+	char line[128], command[32], path[64], filepath[64],scndpath[64];
 	int cmd;
 
 	init();
@@ -20,7 +20,8 @@ int main(int argc, const char *argv[])
 			continue;
 		path[0] = '\0';
 		command[0]='\0';
-		sscanf(line, "%s %s", command, path);
+		scndpath[0]='\0';
+		sscanf(line, "%s %s %s", command, path,scndpath);
 		cmd = findCmd(command);
 		switch(cmd){ /*{{{*/
 			case 0 :
@@ -120,7 +121,7 @@ int main(int argc, const char *argv[])
 //				sync();
 				break;
 			case 32:
-//				link();
+				do_link(path,scndpath);
 				break;
 			case 33:
 //				unlink();
