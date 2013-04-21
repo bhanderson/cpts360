@@ -895,6 +895,104 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 
 } /*}}}*/
 
+/* unlinks a file, if the file is the last link, deletes the file and unallocates it's datablock and inode */
+int do_unlink(char* path)
+{
+    //check for user error
+	if (path[0]=='\0'){
+		printf("Syntax: unlink [path]\n");
+		return -1;
+	}
+	char parentdir[64],name[64], *cp, *endcp,*last;
+	DIR * dp;
+	MINODE * pip,*targetip;
+	int parent, target;
+	cp = strrchr(path, '/');
+	if (cp == NULL){
+		parent = running->cwd->ino; // same dir
+		strcpy(name,path);
+	}
+	else{
+	    //this
+	    *(cp) = '\0';
+		strcpy(parentdir, path);
+		parent = getino(fd,parentdir);
+		strcpy(name,cp+1);
+	}
+    target = getino(fd,path);
+    if ((target==0)||(parent==0)){
+		printf("Error: File must exist\n");
+		return -1;
+	}
+	pip = iget(fd,parent);
+	targetip = iget(fd,target);
+	//check to make sure its not a dir
+	if((targetip->INODE.i_mode & 0100000) != 0100000){
+		iput(pip);
+		printf("Error: Cannot unlink NON-REG files\n");
+		return -1;
+	}
+	//decrement the i links count by one
+	targetip->INODE.i_links_count--;
+	//TODO deallocate if the i_links_count <1
+	//increment refcount?
+	targetip->refCount++;
+	targetip->dirty=1;
+	iput(targetip);
+
+	//now we need to delete the folder entry
+	get_block(fd,pip->INODE.i_block[0],buff);
+
+	cp = buff;
+	dp = (DIR *) buff;
+	int tmp,i,flag;
+	last = 0;
+    i =  0;
+    endcp = buff;
+    //find the item at the end of the buffer
+	while(endcp+dp->rec_len < buff +1024) {
+		endcp += dp->rec_len;
+		dp = (DIR *)endcp;
+	}
+	dp =(DIR *) cp;
+    while (cp < buff+1024)
+    {
+        if (dp->name_len == strlen(name))
+        {
+            if (strncmp(name,dp->name,dp->name_len)==0)
+            {
+                //do file delete operation
+                tmp = dp->rec_len;
+                if (cp == endcp)//if the item we are deleting is at the end we need to look at the last item and increase its rec_length
+                {
+                    dp = (DIR *) last;
+                    dp->rec_len += tmp;
+                    break;
+                }
+                else
+                {
+                    dp = (DIR *) endcp;
+                    dp->rec_len += tmp;
+                    //copy 1024 - current position - record length bytes from the end of the record to the end of the buffer over the current record
+                    memcpy(cp,cp+tmp,1024 - i - tmp);
+                }
+                //we wiped out the value of dp->rec_len so we need to use tmp
+                break;
+            }
+        }
+        last = cp;
+        i += dp->rec_len;
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
+    }
+    put_block(fd,pip->INODE.i_block[0],buff);
+    return 0;
+
+
+
+
+}
+
 /* Creates a hard link to a file (NOT A FOLDER)
  */
 int do_link(char* oldpath,char* newpath) /*{{{*/
