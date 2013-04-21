@@ -594,22 +594,49 @@ void printdir(INODE *inodePtr) /*{{{*/
 {
 	int	data_block=inodePtr->i_block[0];
 	DIR *dp;
+	char fbuff[1024];
+	memset(fbuff, 0, 1024);
 	lseek(fd,BLOCK_SIZE*data_block,SEEK_SET);
-	read(fd,buff,BLOCK_SIZE);
-	dp=(DIR *)buff;
-	char *cp=buff;
+	read(fd,fbuff,BLOCK_SIZE);
+	dp=(DIR *)fbuff;
+	char *cp=fbuff;
+	MINODE *mip;
+	int ino = dp->inode;
 
-	while(cp<buff+1024)
+	while(cp<fbuff+1024)
 	{
+		mip = iget(fd, ino);
+		if(S_ISREG( mip->INODE.i_mode ) ) printf("r");
+		if(S_ISDIR( mip->INODE.i_mode ) ) printf("d");
+		if(S_ISLNK( mip->INODE.i_mode ) ) printf("l");
+//		printf("\n");
+		// user permissions
+		printf((mip->INODE.i_mode & 1 << 8) ? "r" : "-");
+		printf((mip->INODE.i_mode & 1 << 7) ? "w" : "-");
+		printf((mip->INODE.i_mode & 1 << 6) ? "x" : "-");
+		// group permissions
+		printf((mip->INODE.i_mode & 1 << 5) ? "r" : "-");
+		printf((mip->INODE.i_mode & 1 << 4) ? "w" : "-");
+		printf((mip->INODE.i_mode & 1 << 3) ? "x" : "-");
+		// other permissions
+		printf((mip->INODE.i_mode & 1 << 2) ? "r" : "-");
+		printf((mip->INODE.i_mode & 1 << 1) ? "w" : "-");
+		printf((mip->INODE.i_mode & 1 << 0) ? "x" : "-");
+		char time_s[64];
+		//char *time = time_s;
+		//const time_t *t = (unsigned int)&mip->INODE.i_ctime;
+		ctime_r((time_t *)&mip->INODE.i_ctime, time_s);
+		time_s[strlen(time_s)-1]=0;
+		printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
+		mip->INODE.i_gid, mip->INODE.i_size, time_s);
+		iput(mip);
 		char name[dp->name_len];
 		memcpy(name,dp->name,dp->name_len+1);
 		name[dp->name_len]='\0';
-
-
-
-		printf("%d\t%d\t%d\t%s\n",dp->inode,dp->rec_len,dp->name_len,name);
+		printf("%16s\n",name);
 		cp+=dp->rec_len;
 		dp=(DIR *)cp;
+		ino = dp->inode;
 	}
 	return;
 } /*}}}*/
@@ -870,7 +897,7 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 
 /* Creates a hard link to a file (NOT A FOLDER)
  */
-int do_link(char* oldpath,char* newpath)
+int do_link(char* oldpath,char* newpath) /*{{{*/
 {
 	//check for user error
 
@@ -957,6 +984,6 @@ int do_link(char* oldpath,char* newpath)
 	return 0;
 
 
-}
+} /*}}}*/
 
 #endif
