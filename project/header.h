@@ -31,6 +31,7 @@ void do_touch(char *path);
 void mychmod(char *path);
 int creat_file(char *path);
 int my_creat_file(MINODE *pip, char *name);
+int do_link(char *oldpath, char *newpath);
 
 PROC *running;
 PROC *p0;
@@ -867,5 +868,93 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 
 } /*}}}*/
 
+/* Creates a hard link to a file (NOT A FOLDER)
+*/
+int do_link(char* oldpath,char* newpath)
+{
+    //check for user error
 
+    if ((oldpath[0]=='\0')||(newpath[0]=='\0')){
+        printf("Syntax: link [oldpath] [newpath]\n");
+        return -1;
+    }
+    //get the parent directory we are gonna be putting this into
+    char parentdir[64],name[64], *cp;
+    DIR * dp;
+    MINODE * pip,targetip;
+    int parent;
+    int i = strrchr(newpath, '/');
+    if (i == 0){
+        parent = running->cwd->ino; // same dir
+        strcpy(name,newpath);
+    }
+    else{
+        strncpy(parentdir,newpath,i);
+        parent = getino(fd,parentdir);
+        strcpy(name,newpath+i+1);
+    }
+    //get the ino
+    int target = getino(fd,oldpath);
+    //check to make sure both inos exist, if not, terminate
+    if ((target==0)||(parent==0)){
+        printf("Both the target and the parent directory must exist\n");
+        return -1;
+    }
+    //get the parent inode
+    pip = iget(fd,parent);
+    targetip = iget(fd,target);
+    //check to make sure its not a dir
+    if((targetip->INODE.i_mode & 0100000) != 0100000){
+    iput(pip);
+    printf("cannot link to a dir\n");
+    return -1;
+  }
+    get_block(fd,pip->INODE.i_block[0],buff);
+
+    cp = buff;
+  dp = (DIR *) buff;
+
+  while(cp+dp->rec_len < buff +1024) {
+    cp += dp->rec_len;
+    dp = (DIR *)cp;
+  }
+  // calculate size of last item in cwd to reduce rec_len
+  int need_length = 4*((8+dp->name_len+3)/4);
+  // storing the lenght of the new last dir
+  int tmp = dp->rec_len - need_length;
+  // change last dir rec_len to needed length
+  dp->rec_len = need_length;
+
+  cp += dp->rec_len;
+  dp = (DIR *)cp;
+
+  dp->rec_len = tmp;
+  dp->name_len = strlen(name);
+  dp->inode = target;
+  strncpy(dp->name, name, strlen(name));
+
+  put_block(fd, pip->INODE.i_block[0], buff);
+
+  pip->dirty = 1;
+  pip->refCount++;
+  pip->INODE.i_links_count++;
+  pip->INODE.i_atime = time(0);
+
+    iput(pip);
+    //now to adjust the inode of the target
+
+
+  targetip->dirty = 1;
+  targetip->refCount++;
+  targetip->INODE.i_links_count++;
+  iput(targetip);
+
+
+
+
+    return 0;
+
+
+}
+ 
 #endif
