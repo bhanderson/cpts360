@@ -604,7 +604,9 @@ void printdir(INODE *inodePtr) /*{{{*/
 		memcpy(name,dp->name,dp->name_len+1);
 		name[dp->name_len]='\0';
 
-		printf("%d\t%d\t%d\t%s\n",dp->inode,dp->rec_len,dp->name_len,name);
+
+
+		//printf("%d\t%d\t%d\t%s\n",dp->inode,dp->rec_len,dp->name_len,name);
 		cp+=dp->rec_len;
 		dp=(DIR *)cp;
 	}
