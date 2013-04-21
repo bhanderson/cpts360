@@ -108,11 +108,11 @@ MINODE *iget(int dev, unsigned long ino) /*{{{*/
 		if(minode[i].ino == ino){
 			minode[i].refCount ++;
 			//begin hacky test code
-/*			block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table;
-            pos = (ino-1) % INODES_PER_BLOCK;
-            get_block(fd, block, (char *)&buff);
-            memcpy(&minode[i].INODE, (((INODE*)buff) + pos),sizeof(INODE));
- */           //end hacky test coe
+			/*			block = (ino-1) / INODES_PER_BLOCK + gp->bg_inode_table;
+						pos = (ino-1) % INODES_PER_BLOCK;
+						get_block(fd, block, (char *)&buff);
+						memcpy(&minode[i].INODE, (((INODE*)buff) + pos),sizeof(INODE));
+			 */           //end hacky test coe
 			return &minode[i];
 		}
 	}
@@ -145,7 +145,7 @@ void iput(MINODE *mip) /*{{{*/
 	if(mip->dirty == 0)
 		return;
 	else
-	block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
+		block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
 	pos = (mip->ino - 1) % INODES_PER_BLOCK;
 
 	itmp = ( (INODE *)buff + pos);
@@ -210,7 +210,7 @@ unsigned long getino(int dev, char *pathname) /*{{{*/
 		while(token != NULL) {
 			inodeIndex = search(cwd, token);
 			if(inodeIndex == 0){
-			perror("cannot find that inode");
+				perror("cannot find that inode");
 				return 0;
 			}
 			seek = ((inodeIndex-1) / 8 + gp->bg_inode_table)*BLOCK_SIZE +
@@ -541,7 +541,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 	char path[128] = "\0";
 	strncpy(path, pathname, 128);
 	int inodeIndex, seek;
-// if ls fullpath
+	// if ls fullpath
 	if(pathname[0] == '/') {  /*{{{*/
 		strncpy(path, path+1, 127);
 		char *token = strtok(path, "/");
@@ -550,7 +550,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 		while(token !=NULL) {
 			inodeIndex =search(cwd, token);
 			seek =((inodeIndex-1)/8 + gp->bg_inode_table)*1024+(inodeIndex-1)%8
-			*128;
+				*128;
 
 			lseek(fd,seek,SEEK_SET);
 			read(fd,cwd,sizeof(INODE));
@@ -566,14 +566,14 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 		return;
 	} /*}}}*/
 
-// if ls cwd
+	// if ls cwd
 	else if(pathname[0]	<=0){
-	    printf("current dir: Ino %lu, Iblock[0]= %lu\n",(long unsigned
-		int)parent->cwd->ino,(long unsigned int)parent->cwd->INODE.i_block[0]);
+		printf("current dir: Ino %lu, Iblock[0]= %lu\n",(long unsigned
+					int)parent->cwd->ino,(long unsigned int)parent->cwd->INODE.i_block[0]);
 		printdir(&parent->cwd->INODE);
 		return;
 	}
-// if ls local path
+	// if ls local path
 	else{
 		char *token=strtok(path,"/");
 		memcpy(cwd,	&parent->cwd->INODE,sizeof(INODE));
@@ -581,7 +581,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 		while(token!=NULL){
 			inodeIndex=search(cwd,token);
 			seek=((inodeIndex-1)/8 + gp->bg_inode_table)*1024+
-			(inodeIndex-1)%8* 128;
+				(inodeIndex-1)%8* 128;
 			lseek(fd,seek,SEEK_SET);
 			read(fd,cwd,sizeof(INODE));
 			token=strtok(NULL,"/");
@@ -659,19 +659,19 @@ void pwd(MINODE *wd, int childIno) /*{{{*/
 	cp = buf + dp->rec_len;
 	dp = (DIR *)cp; // get second dir ".."
 	if(wd->ino != root->ino){
-        int ino = dp->inode; // get the inode number
-	    parentmip = iget(fd, ino);
+		int ino = dp->inode; // get the inode number
+		parentmip = iget(fd, ino);
 		pwd(parentmip,wd->ino);
 	}
 	if (childIno!=0){
-	    while (dp->inode != childIno)
-	    {
-	        cp += dp->rec_len;
-            dp = (DIR *)cp; // get second dir ".."
-	    }
-	    strncpy(name,dp->name,dp->name_len);
-	    name[dp->name_len] = '\0';
-	    printf("%s/",name);
+		while (dp->inode != childIno)
+		{
+			cp += dp->rec_len;
+			dp = (DIR *)cp; // get second dir ".."
+		}
+		strncpy(name,dp->name,dp->name_len);
+		name[dp->name_len] = '\0';
+		printf("%s/",name);
 	}
 
 	return;
@@ -687,7 +687,7 @@ int do_stat(char *pathname, struct stat *stPtr) /*{{{*/
 {
 	unsigned long ino = getino(fd, pathname);
 	MINODE *mip = iget(fd, ino);
-//	memcpy(destination, source, size)
+	//	memcpy(destination, source, size)
 	stPtr->st_dev = fd;
 	memcpy(&stPtr->st_ino, &ino, sizeof(ino_t));
 	memcpy(&stPtr->st_mode, &mip->INODE.i_mode, sizeof(mode_t));
@@ -815,21 +815,21 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 	// write the . and .. entries into buff
 	memset(buff, 0, 1024);
 
-//	dp = (DIR *)buff;
-//	dp->inode = inumber;
-//	strncpy(dp->name, ".", 1);
-//	dp->name_len = 1;
-//	dp->rec_len = 12;
+	//	dp = (DIR *)buff;
+	//	dp->inode = inumber;
+	//	strncpy(dp->name, ".", 1);
+	//	dp->name_len = 1;
+	//	dp->rec_len = 12;
 
-//	cp = buff;
-//	cp += dp->rec_len;
-//	dp = (DIR *)cp;
+	//	cp = buff;
+	//	cp += dp->rec_len;
+	//	dp = (DIR *)cp;
 
-//	dp->inode = pip->ino;
-//	dp->name_len = 2;
-//	strncpy(dp->name, "..", 2);
-//	dp->rec_len = BLOCK_SIZE - 12;
-//	put_block(dev, bnumber, buff);
+	//	dp->inode = pip->ino;
+	//	dp->name_len = 2;
+	//	strncpy(dp->name, "..", 2);
+	//	dp->rec_len = BLOCK_SIZE - 12;
+	//	put_block(dev, bnumber, buff);
 
 	lseek(dev, pip->INODE.i_block[0]*BLOCK_SIZE, SEEK_SET );
 	read(fd, buff, BLOCK_SIZE);
@@ -860,7 +860,7 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 
 	pip->dirty = 1;
 	pip->refCount++;
-//	pip->INODE.i_links_count++;
+	//	pip->INODE.i_links_count++;
 	pip->INODE.i_atime = time(0);
 	iput(pip);
 	return 0;
@@ -869,92 +869,92 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 } /*}}}*/
 
 /* Creates a hard link to a file (NOT A FOLDER)
-*/
+ */
 int do_link(char* oldpath,char* newpath)
 {
-    //check for user error
+	//check for user error
 
-    if ((oldpath[0]=='\0')||(newpath[0]=='\0')){
-        printf("Syntax: link [oldpath] [newpath]\n");
-        return -1;
-    }
-    //get the parent directory we are gonna be putting this into
-    char parentdir[64],name[64], *cp;
-    DIR * dp;
-    MINODE * pip,targetip;
-    int parent;
-    int i = strrchr(newpath, '/');
-    if (i == 0){
-        parent = running->cwd->ino; // same dir
-        strcpy(name,newpath);
-    }
-    else{
-        strncpy(parentdir,newpath,i);
-        parent = getino(fd,parentdir);
-        strcpy(name,newpath+i+1);
-    }
-    //get the ino
-    int target = getino(fd,oldpath);
-    //check to make sure both inos exist, if not, terminate
-    if ((target==0)||(parent==0)){
-        printf("Both the target and the parent directory must exist\n");
-        return -1;
-    }
-    //get the parent inode
-    pip = iget(fd,parent);
-    targetip = iget(fd,target);
-    //check to make sure its not a dir
-    if((targetip->INODE.i_mode & 0100000) != 0100000){
-    iput(pip);
-    printf("cannot link to a dir\n");
-    return -1;
-  }
-    get_block(fd,pip->INODE.i_block[0],buff);
+	if ((oldpath[0]=='\0')||(newpath[0]=='\0')){
+		printf("Syntax: link [oldpath] [newpath]\n");
+		return -1;
+	}
+	//get the parent directory we are gonna be putting this into
+	char parentdir[64],name[64], *cp;
+	DIR * dp;
+	MINODE * pip,*targetip;
+	int parent;
+	int i = strrchr(newpath, '/');
+	if (i == 0){
+		parent = running->cwd->ino; // same dir
+		strcpy(name,newpath);
+	}
+	else{
+		strncpy(parentdir,newpath,i);
+		parent = getino(fd,parentdir);
+		strcpy(name,newpath+i+1);
+	}
+	//get the ino
+	int target = getino(fd,oldpath);
+	//check to make sure both inos exist, if not, terminate
+	if ((target==0)||(parent==0)){
+		printf("Both the target and the parent directory must exist\n");
+		return -1;
+	}
+	//get the parent inode
+	pip = iget(fd,parent);
+	targetip = iget(fd,target);
+	//check to make sure its not a dir
+	if((targetip->INODE.i_mode & 0100000) != 0100000){
+		iput(pip);
+		printf("cannot link to a dir\n");
+		return -1;
+	}
+	get_block(fd,pip->INODE.i_block[0],buff);
 
-    cp = buff;
-  dp = (DIR *) buff;
+	cp = buff;
+	dp = (DIR *) buff;
 
-  while(cp+dp->rec_len < buff +1024) {
-    cp += dp->rec_len;
-    dp = (DIR *)cp;
-  }
-  // calculate size of last item in cwd to reduce rec_len
-  int need_length = 4*((8+dp->name_len+3)/4);
-  // storing the lenght of the new last dir
-  int tmp = dp->rec_len - need_length;
-  // change last dir rec_len to needed length
-  dp->rec_len = need_length;
+	while(cp+dp->rec_len < buff +1024) {
+		cp += dp->rec_len;
+		dp = (DIR *)cp;
+	}
+	// calculate size of last item in cwd to reduce rec_len
+	int need_length = 4*((8+dp->name_len+3)/4);
+	// storing the lenght of the new last dir
+	int tmp = dp->rec_len - need_length;
+	// change last dir rec_len to needed length
+	dp->rec_len = need_length;
 
-  cp += dp->rec_len;
-  dp = (DIR *)cp;
+	cp += dp->rec_len;
+	dp = (DIR *)cp;
 
-  dp->rec_len = tmp;
-  dp->name_len = strlen(name);
-  dp->inode = target;
-  strncpy(dp->name, name, strlen(name));
+	dp->rec_len = tmp;
+	dp->name_len = strlen(name);
+	dp->inode = target;
+	strncpy(dp->name, name, strlen(name));
 
-  put_block(fd, pip->INODE.i_block[0], buff);
+	put_block(fd, pip->INODE.i_block[0], buff);
 
-  pip->dirty = 1;
-  pip->refCount++;
-  pip->INODE.i_links_count++;
-  pip->INODE.i_atime = time(0);
+	pip->dirty = 1;
+	pip->refCount++;
+	pip->INODE.i_links_count++;
+	pip->INODE.i_atime = time(0);
 
-    iput(pip);
-    //now to adjust the inode of the target
-
-
-  targetip->dirty = 1;
-  targetip->refCount++;
-  targetip->INODE.i_links_count++;
-  iput(targetip);
+	iput(pip);
+	//now to adjust the inode of the target
 
 
+	targetip->dirty = 1;
+	targetip->refCount++;
+	targetip->INODE.i_links_count++;
+	iput(targetip);
 
 
-    return 0;
+
+
+	return 0;
 
 
 }
- 
+
 #endif
