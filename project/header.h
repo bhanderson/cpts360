@@ -29,6 +29,9 @@ void mystat(char *path);
 int do_stat(char *path, struct stat *stPtr);
 void do_touch(char *path);
 void mychmod(char *path);
+int creat_file(char *path);
+int my_creat_file(MINODE *pip, char *name);
+
 PROC *running;
 PROC *p0;
 PROC *p1;
@@ -747,5 +750,118 @@ void mychmod(char *pathname) /*{{{*/
 	printf("new permissions: %o\n", mip->INODE.i_mode);
 	return;
 } /*}}}*/
+
+int creat_file(char *path) /*{{{*/
+{
+	char line[128], parent[64], child[64], temp[64];
+	int dev, ino, r;
+	MINODE *pip;
+
+	strcpy(line,path);
+	if(line[0] == '/')
+		dev = root->dev;
+	else
+		dev = running->cwd->dev;
+
+	strcpy(temp, line);
+	strcpy(parent, dirname(temp));
+
+	strcpy(temp, line);
+	strcpy(child, basename(temp));
+
+	ino = getino(dev, parent);
+	pip = iget(dev, ino);
+
+	r = my_creat_file(pip,child);
+
+	return r;
+
+
+} /*}}}*/
+
+int my_creat_file(MINODE *pip, char *name) /*{{{*/
+{
+	int inumber, bnumber, dev,i ;
+	char *cp;
+	MINODE *mip;
+	DIR *dp;
+
+	dev = pip->dev;
+
+	inumber = ialloc(dev);
+
+	mip = iget(dev, inumber);
+
+	for (i = 0; i < 15; i++) {
+		mip->INODE.i_block[i]=0;
+	}
+
+	mip->dirty=1;
+	mip->ino = inumber;
+	mip->INODE.i_mode=0x814;
+	mip->INODE.i_uid=running->uid;
+	mip->INODE.i_gid=running->gid;
+	mip->INODE.i_size=1024;
+	mip->INODE.i_links_count=0;
+	mip->INODE.i_atime=mip->INODE.i_ctime=mip->INODE.i_mtime = time(0L);
+	mip->INODE.i_blocks=2;
+	iput(mip);
+
+	// write the . and .. entries into buff
+	memset(buff, 0, 1024);
+
+//	dp = (DIR *)buff;
+//	dp->inode = inumber;
+//	strncpy(dp->name, ".", 1);
+//	dp->name_len = 1;
+//	dp->rec_len = 12;
+
+//	cp = buff;
+//	cp += dp->rec_len;
+//	dp = (DIR *)cp;
+
+//	dp->inode = pip->ino;
+//	dp->name_len = 2;
+//	strncpy(dp->name, "..", 2);
+//	dp->rec_len = BLOCK_SIZE - 12;
+//	put_block(dev, bnumber, buff);
+
+	lseek(dev, pip->INODE.i_block[0]*BLOCK_SIZE, SEEK_SET );
+	read(fd, buff, BLOCK_SIZE);
+
+	cp = buff;
+	dp = (DIR *) buff;
+
+	while(cp+dp->rec_len < buff +1024) {
+		cp += dp->rec_len;
+		dp = (DIR *)cp;
+	}
+	// calculate size of last item in cwd to reduce rec_len
+	int need_length = 4*((8+dp->name_len+3)/4);
+	// storing the lenght of the new last dir
+	int tmp = dp->rec_len - need_length;
+	// change last dir rec_len to needed length
+	dp->rec_len = need_length;
+
+	cp += dp->rec_len;
+	dp = (DIR *)cp;
+
+	dp->rec_len = tmp;
+	dp->name_len = strlen(name);
+	dp->inode = mip->ino;
+	strncpy(dp->name, name, strlen(name));
+
+	put_block(dev, pip->INODE.i_block[0], buff);
+
+	pip->dirty = 1;
+	pip->refCount++;
+//	pip->INODE.i_links_count++;
+	pip->INODE.i_atime = time(0);
+	iput(pip);
+	return 0;
+
+
+} /*}}}*/
+
 
 #endif

@@ -42,7 +42,7 @@ int main(int argc, const char *argv[])
 //				umount(pathname);
 				break;
 			case 6 :
-//				creat_file();
+				creat_file(path);
 				break;
 			case 7 :
 //				rmdir();
