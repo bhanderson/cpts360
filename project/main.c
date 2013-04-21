@@ -124,7 +124,7 @@ int main(int argc, const char *argv[])
 				do_link(path,scndpath);
 				break;
 			case 33:
-//				unlink();
+				do_unlink(path);
 				break;
 			case 34:
 //				symlink();
