@@ -35,6 +35,7 @@ int my_creat_file(MINODE *pip, char *name);
 int do_link(char *oldpath, char *newpath);
 int do_rmdir(char* path);
 int rm_file(char* path);
+void deallocateInodeDataBlocks(int dev, MINODE* mip);
 
 PROC *running;
 PROC *p0;
@@ -502,6 +503,110 @@ void idealloc(int dev, unsigned long ino) /*{{{*/
 	return;
 } /*}}}*/
 
+/* deallocates all of the dataBlocks for an inode */
+void deallocateInodeDataBlocks(int dev, MINODE* mip)
+{
+    char bitmap[1024],dblindbuff[1024];
+    int i = 0;
+    int j = 0;
+    int indblk,dblindblk;
+    unsigned long *indirect,*doubleindirect;
+    get_block(dev,BBITMAP,bitmap);
+    for ( i = 0; i<12; i++)
+    {
+        if (mip->INODE.i_block[i]!=0)
+        {
+            clearbit(bitmap, mip->INODE.i_block[i]-1);
+            mip->INODE.i_block[i]=0;
+        }
+        else
+        {
+            put_block(dev,BBITMAP,bitmap);
+            return ;
+        }
+    }
+    // on to indirect blocks
+    if (mip->INODE.i_block[i]!=0)
+    {
+        indblk = mip->INODE.i_block[i];
+        get_block(dev,indblk,buff);
+        indirect = buff;
+        for (i=0;i<256;i++)
+        {
+            if(*indirect != 0)
+            {
+                clearbit(bitmap, *indirect-1);
+                *indirect = 0;
+                indirect++;
+            }
+            else
+            {
+                clearbit(bitmap, indblk-1);
+                put_block(dev,indblk,buff);
+                put_block(dev,BBITMAP,bitmap);
+                mip->INODE.i_block[12] = 0;
+                return;
+            }
+        }
+    }
+    else
+    {
+            put_block(dev,BBITMAP,bitmap);
+            return;
+    }
+    //then double indirect
+    if (mip->INODE.i_block[13]!=0)
+    {
+        dblindblk = mip->INODE.i_block[13];
+        get_block(dev,dblindblk,dblindbuff);
+        doubleindirect = dblindbuff;
+        for (i=0;i<256;i++)
+        {
+            indblk = *doubleindirect;
+            get_block(dev,indblk,buff);
+            indirect = buff;
+            for (j=0;j<256;j++)
+            {
+                if(*indirect != 0)
+                {
+                    clearbit(bitmap, *indirect-1);
+                    *indirect = 0;
+                    indirect++;
+                }
+                else
+                {
+                    clearbit(bitmap, indblk-1);
+                    clearbit(bitmap, dblindblk-1);
+                    put_block(dev,indblk,buff);
+                    put_block(dev,BBITMAP,bitmap);
+                    put_block(dev,dblindblk,dblindbuff);
+                    mip->INODE.i_block[13] = 0;
+                    return;
+                }
+                clearbit(bitmap, indblk-1);
+
+            }
+            doubleindirect++;
+            if (*doubleindirect == 0)
+            {//edge case handling
+                clearbit(bitmap, indblk-1);
+                clearbit(bitmap, dblindblk-1);
+                put_block(dev,indblk,buff);
+                put_block(dev,BBITMAP,bitmap);
+                put_block(dev,dblindblk,dblindbuff);
+                mip->INODE.i_block[13] = 0;
+                return;
+            }
+        }
+    }
+    else
+    {
+            put_block(dev,BBITMAP,bitmap);
+            return;
+    }
+
+}
+
 /* finds and allocates a free blockbitmap bit for data, returns the number found
  * working dont touch
  */
@@ -530,11 +635,11 @@ unsigned long balloc( int dev ) /*{{{*/
 
 /* deallocate the ino that was allocated in block bitmap
  */
-void bdealloc(int dev, unsigned long ino) /*{{{*/
+void bdealloc(int dev, unsigned long block) /*{{{*/
 {
 	int i;
 	get_block(dev, BBITMAP, buff);
-	clearbit(buff, ino-1);
+	clearbit(buff, block-1);
 	put_block(dev, BBITMAP, buff);
 } /*}}}*/
 
@@ -1078,14 +1183,14 @@ int rm_file(char* path)
 		printf("Error: cannot rm a non regular file\n");
 		return -1;
 	}
-	//TODO deallocate Data Blocks
+    deallocateInodeDataBlocks(fd,targetip);
     //TODO deallocate Inode
 
     deleteChild(pip,name);
 
-
-
 }
+
+
 /* deletes an empty folder */
 int do_rmdir(char* path)
 {
@@ -1133,8 +1238,9 @@ int do_rmdir(char* path)
         printf("Errpr: Dir must be empty \n");
         return -1;
     }
+
+    deallocateInodeDataBlocks(fd,targetip);
     //TODO Deallocate DIR Inode
-    //TODO Deallocate DIR Data_Block
 
     //Then we have to delete the directory entry
     deleteChild(pip,name);
