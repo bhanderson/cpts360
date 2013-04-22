@@ -757,6 +757,11 @@ int do_cd(char *pathname) /*{{{*/
 		running->cwd = iget(root->dev, 2);
 		return 0;
 	}
+	if(strcmp(pathname, "/") == 0){
+		printf("CDing to root\n");
+		running->cwd = iget(root->dev, 2);
+		return 0;
+	}
 	int ino = getino(fd, pathname);
 	if(ino==0){
 		printf("directory doesn't exist\n");
