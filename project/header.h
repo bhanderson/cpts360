@@ -938,7 +938,7 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 
 	mip->dirty=1;
 	mip->ino = inumber;
-	mip->INODE.i_mode=0x814;
+	mip->INODE.i_mode=0x81A4;
 	mip->INODE.i_uid=running->uid;
 	mip->INODE.i_gid=running->gid;
 	mip->INODE.i_size=1024;
