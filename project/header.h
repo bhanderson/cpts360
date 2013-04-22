@@ -33,6 +33,7 @@ int deleteChild(MINODE* pip,char* name);
 int creat_file(char *path);
 int my_creat_file(MINODE *pip, char *name);
 int do_link(char *oldpath, char *newpath);
+int do_symlink(char *oldpath, char *newpath);
 int do_rmdir(char* path);
 int rm_file(char* path);
 void deallocateInodeDataBlocks(int dev, MINODE* mip);
@@ -504,7 +505,7 @@ void idealloc(int dev, unsigned long ino) /*{{{*/
 } /*}}}*/
 
 /* deallocates all of the dataBlocks for an inode */
-void deallocateInodeDataBlocks(int dev, MINODE* mip)
+void deallocateInodeDataBlocks(int dev, MINODE* mip) /*{{{*/
 {
     char bitmap[1024],dblindbuff[1024];
     int i = 0;
@@ -605,7 +606,7 @@ void deallocateInodeDataBlocks(int dev, MINODE* mip)
             return;
     }
 
-}
+} /*}}}*/
 
 /* finds and allocates a free blockbitmap bit for data, returns the number found
  * working dont touch
@@ -998,13 +999,13 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 	//	pip->INODE.i_links_count++;
 	pip->INODE.i_atime = time(0);
 	iput(pip);
-	return 0;
+	return mip->ino;
 
 
 } /*}}}*/
 
 /* unlinks a file, if the file is the last link, deletes the file and unallocates it's datablock and inode */
-int do_unlink(char* path)
+int do_unlink(char* path) /*{{{*/
 {
     //check for user error
 	if (path[0]=='\0'){
@@ -1053,7 +1054,7 @@ int do_unlink(char* path)
 
 
 
-}
+} /*}}}*/
 
 /* Creates a hard link to a file (NOT A FOLDER)
  */
@@ -1146,8 +1147,47 @@ int do_link(char* oldpath,char* newpath) /*{{{*/
 
 } /*}}}*/
 
+int do_symlink(char *oldpath, char *newpath){ /*{{{*/
+	if(oldpath[0]==0 || newpath[0]==0){
+		printf("Syntax symlink [oldpath] [newpath]\n");
+		return -1;
+	}
+	char parentdir[64], name[64], *cp;
+	DIR *dp;
+	MINODE *pip, *targetip;
+	int parent;
+	cp = strrchr(newpath, '/');
+	if(cp == NULL){// not absolute path
+		parent = running ->cwd->ino;
+		strcpy(name, newpath);
+	}else{
+		*(cp) = '\0';
+		strcpy(parentdir, newpath);
+		parent = getino(fd, parentdir);
+		strcpy(name, cp+1);
+	}
+	int target = creat_file(newpath);
+	pip = iget(fd, parent);
+	targetip = iget(fd, target);
+	pip->dirty = 1;
 
-int rm_file(char* path)
+	pip->refCount++;
+	pip->INODE.i_links_count++;
+	pip->INODE.i_atime = time(0);
+
+	iput(pip);
+
+	targetip->dirty = 1;
+	targetip->refCount++;
+	targetip->INODE.i_links_count++;
+	targetip->INODE.i_mode = 0xA1A4;
+	memcpy(targetip->INODE.i_block, newpath, strlen(newpath));
+	iput(targetip);
+
+	return 0;
+} /*}}}*/
+
+int rm_file(char* path) /*{{{*/
 {
 
     //check for user error
@@ -1188,11 +1228,11 @@ int rm_file(char* path)
 
     deleteChild(pip,name);
 
-}
+} /*}}}*/
 
 
 /* deletes an empty folder */
-int do_rmdir(char* path)
+int do_rmdir(char* path) /*{{{*/
 {
     //check for user error
 	if (path[0]=='\0'){
@@ -1247,10 +1287,10 @@ int do_rmdir(char* path)
 
 
 
-}
+} /*}}}*/
 
 /* Deletes the child of a minode with name name */
-int deleteChild(MINODE* pip,char* name){
+int deleteChild(MINODE* pip,char* name){ /*{{{*/
     get_block(fd,pip->INODE.i_block[0],buff);
 
 	char* cp = buff;
@@ -1298,6 +1338,6 @@ int deleteChild(MINODE* pip,char* name){
     put_block(fd,pip->INODE.i_block[0],buff);
 
 
-}
+} /*}}}*/
 
 #endif

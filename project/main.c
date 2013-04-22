@@ -127,7 +127,7 @@ int main(int argc, const char *argv[])
 				do_unlink(path);
 				break;
 			case 34:
-//				symlink();
+				do_symlink(path,scndpath);
 				break;
 			case 99:
 				printf("Exiting\n");
