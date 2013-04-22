@@ -29,9 +29,12 @@ void mystat(char *path);
 int do_stat(char *path, struct stat *stPtr);
 void do_touch(char *path);
 void mychmod(char *path);
+int deleteChild(MINODE* pip,char* name);
 int creat_file(char *path);
 int my_creat_file(MINODE *pip, char *name);
 int do_link(char *oldpath, char *newpath);
+int do_rmdir(char* path);
+int rm_file(char* path);
 
 PROC *running;
 PROC *p0;
@@ -940,53 +943,7 @@ int do_unlink(char* path)
 	targetip->dirty=1;
 	iput(targetip);
 
-	//now we need to delete the folder entry
-	get_block(fd,pip->INODE.i_block[0],buff);
-
-	cp = buff;
-	dp = (DIR *) buff;
-	int tmp,i,flag;
-	last = 0;
-    i =  0;
-    endcp = buff;
-    //find the item at the end of the buffer
-	while(endcp+dp->rec_len < buff +1024) {
-		endcp += dp->rec_len;
-		dp = (DIR *)endcp;
-	}
-	dp =(DIR *) cp;
-    while (cp < buff+1024)
-    {
-        if (dp->name_len == strlen(name))
-        {
-            if (strncmp(name,dp->name,dp->name_len)==0)
-            {
-                //do file delete operation
-                tmp = dp->rec_len;
-                if (cp == endcp)//if the item we are deleting is at the end we need to look at the last item and increase its rec_length
-                {
-                    dp = (DIR *) last;
-                    dp->rec_len += tmp;
-                    break;
-                }
-                else
-                {
-                    dp = (DIR *) endcp;
-                    dp->rec_len += tmp;
-                    //copy 1024 - current position - record length bytes from the end of the record to the end of the buffer over the current record
-                    memcpy(cp,cp+tmp,1024 - i - tmp);
-                }
-                //we wiped out the value of dp->rec_len so we need to use tmp
-                break;
-            }
-        }
-        last = cp;
-        i += dp->rec_len;
-        cp += dp->rec_len;
-        dp = (DIR *)cp;
-    }
-    put_block(fd,pip->INODE.i_block[0],buff);
-    return 0;
+    return deleteChild(pip,name);
 
 
 
@@ -1083,5 +1040,158 @@ int do_link(char* oldpath,char* newpath) /*{{{*/
 
 
 } /*}}}*/
+
+
+int rm_file(char* path)
+{
+
+    //check for user error
+	if (path[0]=='\0'){
+		printf("Syntax: rm [path]\n");
+		return -1;
+	}
+	char parentdir[64],name[64], *cp, *endcp,*last;
+	DIR * dp;
+	MINODE * pip,*targetip;
+	int parent, target;
+	cp = strrchr(path, '/');
+	if (cp == NULL){
+		parent = running->cwd->ino; // same dir
+		strcpy(name,path);
+	}
+	else{
+	    //this
+	    *(cp) = '\0';
+		strcpy(parentdir, path);
+		parent = getino(fd,parentdir);
+		strcpy(name,cp+1);
+	}
+    target = getino(fd,path);
+    if ((target==0)||(parent==0)){
+		printf("Error: File must exist\n");
+		return -1;
+	}
+	pip = iget(fd,parent);
+	targetip = iget(fd,target);
+    if((targetip->INODE.i_mode & 0100000) != 0100000){
+		iput(pip);
+		printf("Error: cannot rm a non regular file\n");
+		return -1;
+	}
+	//TODO deallocate Data Blocks
+    //TODO deallocate Inode
+
+    deleteChild(pip,name);
+
+
+
+}
+/* deletes an empty folder */
+int do_rmdir(char* path)
+{
+    //check for user error
+	if (path[0]=='\0'){
+		printf("Syntax: rmdir [path]\n");
+		return -1;
+	}
+	char parentdir[64],name[64], *cp, *endcp,*last;
+	DIR * dp;
+	MINODE * pip,*targetip;
+	int parent, target;
+	cp = strrchr(path, '/');
+	if (cp == NULL){
+		parent = running->cwd->ino; // same dir
+		strcpy(name,path);
+	}
+	else{
+	    //this
+	    *(cp) = '\0';
+		strcpy(parentdir, path);
+		parent = getino(fd,parentdir);
+		strcpy(name,cp+1);
+	}
+    target = getino(fd,path);
+    if ((target==0)||(parent==0)){
+		printf("Error: File must exist\n");
+		return -1;
+	}
+	pip = iget(fd,parent);
+	targetip = iget(fd,target);
+    if((targetip->INODE.i_mode & 0040000) != 0040000){
+		iput(pip);
+		printf("Error: cannot rmdir a non dir\n");
+		return -1;
+	}
+	//check to make sure the dir is empty, we do this by checking the folder entry for .. and seeing if it's rec length is 1012
+	get_block(fd,targetip->INODE.i_block[0],buff);
+	cp = buff;
+	dp = (DIR*) cp;
+	cp += dp->rec_len;
+	dp = (DIR*) cp;
+	if (dp->rec_len != 1012)
+	{
+        printf("Errpr: Dir must be empty \n");
+        return -1;
+    }
+    //TODO Deallocate DIR Inode
+    //TODO Deallocate DIR Data_Block
+
+    //Then we have to delete the directory entry
+    deleteChild(pip,name);
+
+
+
+}
+
+/* Deletes the child of a minode with name name */
+int deleteChild(MINODE* pip,char* name){
+    get_block(fd,pip->INODE.i_block[0],buff);
+
+	char* cp = buff;
+	DIR* dp = (DIR *) buff;
+	int tmp,i,flag,last;
+	last = 0;
+    i =  0;
+    char* endcp = buff;
+    //find the item at the end of the buffer
+	while(endcp+dp->rec_len < buff +1024) {
+		endcp += dp->rec_len;
+		dp = (DIR *)endcp;
+	}
+	dp =(DIR *) cp;
+    while (cp < buff+1024)
+    {
+        if (dp->name_len == strlen(name))
+        {
+            if (strncmp(name,dp->name,dp->name_len)==0)
+            {
+                //do file delete operation
+                tmp = dp->rec_len;
+                if (cp == endcp)//if the item we are deleting is at the end we need to look at the last item and increase its rec_length
+                {
+                    dp = (DIR *) last;
+                    dp->rec_len += tmp;
+                    break;
+                }
+                else
+                {
+                    dp = (DIR *) endcp;
+                    dp->rec_len += tmp;
+                    //copy 1024 - current position - record length bytes from the end of the record to the end of the buffer over the current record
+                    memcpy(cp,cp+tmp,1024 - i - tmp);
+                }
+                //we wiped out the value of dp->rec_len so we need to use tmp
+                break;
+            }
+        }
+        last = cp;
+        i += dp->rec_len;
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
+    }
+    put_block(fd,pip->INODE.i_block[0],buff);
+
+
+}
 
 #endif

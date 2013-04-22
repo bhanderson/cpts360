@@ -46,10 +46,10 @@ int main(int argc, const char *argv[])
 				creat_file(path);
 				break;
 			case 7 :
-//				rmdir();
+				do_rmdir(path);
 				break;
 			case 8 :
-//				rm_file();
+				rm_file(path);
 				break;
 			case 9 :
 //				open_file();
