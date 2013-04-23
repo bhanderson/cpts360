@@ -734,7 +734,7 @@ void printdir(INODE *inodePtr) /*{{{*/
 		char time_s[64];
 		//char *time = time_s;
 		//const time_t *t = (unsigned int)&mip->INODE.i_ctime;
-		ctime_r((time_t *)&mip->INODE.i_ctime, time_s);
+		ctime_r((time_t *)&mip->INODE.i_mtime, time_s);
 		time_s[strlen(time_s)-1]=0;
 		printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
 		mip->INODE.i_gid, mip->INODE.i_size, time_s);
