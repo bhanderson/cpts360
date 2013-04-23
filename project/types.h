@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <time.h>
 
 // define shorter TYPES, save typing efforts
 typedef struct ext2_group_desc  GD;
@@ -90,26 +91,3 @@ typedef struct Mount {
     char   name[256];
     char   mount_name[64];
 } MOUNT;
-
-int tstbit(char *buf, int BIT) {
-    int i, j;
-    i = BIT / 8;
-    j = BIT % 8;
-    return buf[i] & (1 << j);
-}
-
-int setbit(char *buf, int BIT) {
-    int i, j;
-    i = BIT / 8;
-    j = BIT % 8;
-    buf[i] |= (1 << j);
-    return 1;
-}
-
-int clearbit(char *buf, int BIT) {
-    int i, j;
-    i = BIT / 8;
-    j = BIT % 8;
-    buf[i] &= ~(1 << j);
-    return 1;
-}
