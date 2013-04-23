@@ -54,7 +54,7 @@ DIR   *dp;
 typedef struct Oft {
     int   mode;
     int   refCount;
-    struct Minode *inodeptr;
+    struct Minode *minodeptr;
     long  offset;
 } OFT;
 
@@ -68,7 +68,7 @@ typedef struct Proc {
     int   status;
 
     struct Minode *cwd;
-    OFT   *fd[NFD];
+    OFT*   fd[NFD];
 } PROC;
 
 // In-memory inodes structure

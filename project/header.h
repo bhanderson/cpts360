@@ -40,6 +40,14 @@ void deallocateInodeDataBlocks(int dev, MINODE* mip);
 int tstbit(char *buf, int BIT);
 int setbit(char *buf, int BIT);
 int clearbit(char *buf, int BIT);
+int open_file(char* path,char mode);
+int falloc(OFT* oftp);
+void do_truncate(int dev,MINODE *mip);
+int close_file(int fd);
+int pfd();
+MINODE* findParent(MINODE* mip,MINODE* pip);
+int printfilepath(MINODE* mip);
+int lseek_file(int fd, long position);
 
 
 extern PROC *running;

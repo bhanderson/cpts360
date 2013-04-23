@@ -454,6 +454,22 @@ unsigned long ialloc(int dev) /*{{{*/
 	}
 	return 0;
 } /*}}}*/
+//Allocates a OFT pointer and assigns it to the next availble spot in the running process
+int falloc(OFT* oftp)
+{
+    int i = 0;
+    for(i=0;i<10;i++)
+    {
+        if (running->fd[i]==NULL)
+            break;
+    }
+    if (i==10)
+    {
+        return -1;
+    }
+    running->fd[i]=oftp;
+    return i;
+}
 
 /* deallocate the ino that was allocated
  */
@@ -569,6 +585,17 @@ void deallocateInodeDataBlocks(int dev, MINODE* mip) /*{{{*/
     }
 
 } /*}}}*/
+
+//an extension of the deallocate =InodeDataBlocksFunction
+void do_truncate(int dev, MINODE *mip)
+{
+    deallocateInodeDataBlocks(dev,mip);
+    mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
+    mip->INODE.i_size = 0;
+    mip->dirty = 1;
+
+
+}
 
 /* finds and allocates a free blockbitmap bit for data, returns the number found
  * working dont touch
@@ -794,6 +821,129 @@ void pwd(MINODE *wd, int childIno) /*{{{*/
 	return;
 } /*}}}*/
 
+//prints the currently open file descriptors and their modes
+//TODO pretty up the formatting for long file names (currently the tab spacing goes off)
+int pfd()
+{
+    int i;
+    printf("Filename\tFD\tmode\toffset\n");
+    printf("--------\t--\t----\t------\n");
+    for(i = 0;i<10;i++)
+    {
+        if (running->fd[i]!= NULL)
+        {
+            printfilepath(running->fd[i]->minodeptr);
+            printf("\t\t%d\t",i);
+            switch(running->fd[i]->mode)
+            {
+                case 0:
+                    printf("READ\t");
+                    break;
+                case 1:
+                    printf("WRITE\t");
+                    break;
+                case 2:
+                    printf("R/W\t");
+                    break;
+                case 3:
+                    printf("APPEND\t");
+                    break;
+                default:
+                    printf("??????\t");//this should never happen
+                    break;
+            }
+            printf("%li\n",running->fd[i]->offset);
+        }
+    }
+}
+
+//prints the path to the current file
+int printfilepath(MINODE* mip)
+{
+    int ino = mip->ino;
+    MINODE* pip = findParent(mip,root);
+    pwd(pip,0);
+    int i;
+    DIR *dp;
+    char* cp,name[64];
+    for (i = 0; i < 12; i++) {
+        get_block(fd,pip->INODE.i_block[i],buff);
+	    if ( pip->INODE.i_block[i]==0)
+	    {
+	        break;
+	    }
+		cp = buff;
+		dp = (DIR *) buff;
+
+		//get rid of the first two entries or we will be stuck forever
+		cp += dp->rec_len;
+        dp = (DIR *)cp;
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
+        //Depth first search
+		while(cp < buff + 1024){
+			if (dp->inode == mip->ino)
+			{
+			    strncpy(name,dp->name,dp->name_len);
+			    name[dp->name_len] = '\0';
+                printf("%s",name);
+			}
+			 cp += dp->rec_len;
+            dp = (DIR *)cp;
+
+
+        }
+    }
+
+}
+//Recusive depth first search function to find the parent
+//THIS IS BAD, THERE MUST BE A BETTER WAY
+MINODE* findParent(MINODE* mip,MINODE* pip)
+{
+    MINODE* result;
+    DIR *dp;
+    char* cp;
+	int i,j;
+	char tmpbuff[1024];
+	for (i = 0; i < 12; i++) {
+	    if ( pip->INODE.i_block[i]==0)
+	    {
+	        break;
+	    }
+		cp = tmpbuff;
+		dp = (DIR *) tmpbuff;
+
+
+		lseek(fd, pip->INODE.i_block[i]*BLOCK_SIZE, SEEK_SET);
+		read(fd, tmpbuff, 1024);
+		//get rid of the first two entries or we will be stuck forever
+		cp += dp->rec_len;
+        dp = (DIR *)cp;
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
+        //Depth first search
+		while(cp < tmpbuff + 1024){
+			if (dp->inode == mip->ino)
+                return pip;
+            else
+            {
+                MINODE* cip = iget(fd, dp->inode);
+                if (S_ISDIR( cip->INODE.i_mode))
+                {
+                    result = findParent(mip,cip);
+                    if (result!=NULL)
+                        return result;
+                }
+
+            }
+
+            cp += dp->rec_len;
+            dp = (DIR *)cp;
+
+		}
+	}
+	return NULL;
+}
 void mystat(char *path){ /*{{{*/
 	struct stat mystat;
 	int r = do_stat(path, &mystat);
@@ -900,7 +1050,135 @@ int creat_file(char *path) /*{{{*/
 
 
 } /*}}}*/
+int open_file(char* path,char mode)
+{
+    if ((path[0]=='\0')||(mode=='\0'))
+    {
+        printf("SYNTAX: open [path] [mode (as int)]\n");
+        printf("Modes: 0 = READ, 1 = WRITE, 2 = READ/WRITE, 3 = APPEND\n");
+        return -1;
+    }
+    int ino = getino(fd,path);
+    int i;
+    int index;
+    MINODE * mip = iget(fd,ino);
+    if (!S_ISREG( mip->INODE.i_mode ))
+    {
+        printf("Error: file must be regular\n");
+        return -1;
+    }
+    //check to see whether it is already open with an incompatable type
+    for(i =0;i<10;i++)
+    {
+        if (running->fd[i] != 0)
+        {
+            if (running->fd[i]->minodeptr == mip)
+            {
+                if (running->fd[i]->mode>0)
+                {
+                    printf("Error: File already opened for writing\n");
+                    return -1;
+                }
+            }
+        }
+    }
+    OFT* oftp;
+    oftp = malloc(sizeof(OFT));
+    index = falloc(oftp);
+    if (index == -1)
+    {
+        printf("Error: No open file descriptor slots in running process \n");
+        return -1;
+    }
+    oftp->mode = mode-48;
+    oftp->refCount = 1;
+    oftp->minodeptr = mip;
+    switch(oftp->mode)
+    {
+        case 0:
+            oftp->offset = 0;
+            break;
+        case 1:
+            oftp->offset = 0;
+            break;
+        case 2:
+            oftp->offset = 0;
+            break;
+        case 3:
+            oftp->offset = mip->INODE.i_size;
+            break;
+        default:
+            printf("invalid mode\n");
+            running->fd[index]=0;
+            return -1;
+    }
+    mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
+    mip->dirty;
+    return i;
 
+
+
+
+}
+//seeks to a certain offset in an open file
+int lseek_file(int fd, long position)
+{
+    if (fd==-48)
+    {
+        printf("SYNTAX: lseek [fd (as int)] [offset (as long)]\n");
+        return -1;
+    }
+    if (position>running->fd[fd]->minodeptr->INODE.i_size)
+    {
+        printf("ERROR: File length overrun\n");
+        return -1;
+    }
+    else if(position<0)
+    {
+        printf("ERROR: Cannot Lseek a negitive number\n");
+        return -1;
+    }
+    long original = running->fd[fd]->offset;
+    running->fd[fd]->offset = position;
+    return original;
+}
+
+
+//closes a file with the specified file descriptor
+int close_file(int fd)
+{
+    MINODE* mip;
+    if (fd==-48)
+    {
+        printf("SYNTAX: close [fd (as int)]\n");
+        return -1;
+    }
+    if ((fd>=10)||(fd<0))
+    {
+        printf("Error: Invalid File descriptor \n");
+        return -1;
+    }
+    if (running->fd[fd]==NULL)
+    {
+        printf("Error: File descriptor not found \n");
+        return -1;
+    }
+    OFT* oftp = running->fd[fd];
+    running->fd[fd] = 0;
+    oftp->refCount--;
+    if (oftp->refCount > 0)
+        return 0;
+    else //we are the last user of this oft entry
+    {
+        mip = oftp->minodeptr;
+        iput(mip);
+    }
+    return 0;
+
+
+
+
+}
 int my_creat_file(MINODE *pip, char *name) /*{{{*/
 {
 	int inumber, bnumber, dev,i ;

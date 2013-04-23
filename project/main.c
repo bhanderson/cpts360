@@ -4,6 +4,7 @@ int main(int argc, const char *argv[])
 {
 	char line[128], command[32], path[64], filepath[64],scndpath[64];
 	int cmd;
+    long tmp;
 
 	init();
 
@@ -52,10 +53,10 @@ int main(int argc, const char *argv[])
 				rm_file(path);
 				break;
 			case 9 :
-//				open_file();
+				open_file(path,scndpath[0]);
 				break;
 			case 10:
-//				close_file();
+				close_file(path[0]-48);
 				break;
 			case 11:
 //				read_file();
@@ -73,10 +74,11 @@ int main(int argc, const char *argv[])
 //				mv_file();
 				break;
 			case 16:
-//				pfd();
+				pfd();
 				break;
 			case 17:
-//				lseek_file();
+                sscanf(scndpath,"%li",&tmp);
+				lseek_file(path[0]-48,tmp);
 				break;
 			case 18:
 //				rewind_file();
