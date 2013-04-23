@@ -693,6 +693,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 				(inodeIndex-1)%8* 128;
 			lseek(fd,seek,SEEK_SET);
 			read(fd,cwd,sizeof(INODE));
+			printdir(cwd);
 			token=strtok(NULL,"/");
 		}
 	}
@@ -711,7 +712,7 @@ void printdir(INODE *inodePtr) /*{{{*/
 	char *cp=fbuff;
 	MINODE *mip;
 	int ino = dp->inode;
-	char name[64];
+	char name[256];
 	while(cp<fbuff+1024)
 	{
 		mip = iget(fd, ino);
@@ -738,15 +739,16 @@ void printdir(INODE *inodePtr) /*{{{*/
 		time_s[strlen(time_s)-1]=0;
 		printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
 		mip->INODE.i_gid, mip->INODE.i_size, time_s);
-		iput(mip);
 //		char name[dp->name_len+1];
-		memcpy(name,dp->name,dp->name_len);
+		memmove(name, dp->name, dp->name_len);
+//		memcpy(name,dp->name,dp->name_len);
 		name[dp->name_len]='\0';
 		if(S_ISLNK( mip->INODE.i_mode)){
 			printf("%16s->%s\n",name,(char *)mip->INODE.i_block);
 		}else{
 			printf("%16s\n",name);
 		}
+		iput(mip);
 		cp+=dp->rec_len;
 		dp=(DIR *)cp;
 		ino = dp->inode;
