@@ -9,6 +9,8 @@ MINODE minode[100];
 int fd;
 
 char buff[BLOCK_SIZE];
+char read_buff[BLOCK_SIZE]; // A special buff for reads
+
 
 
 void init() /*{{{*/
@@ -1179,6 +1181,69 @@ int close_file(int fd)
 
 
 }
+//the handler for user input into read
+int read_file(int fd, long bytes)
+{
+    if ((fd>=10)||(fd<0))
+    {
+        printf("SYNTAX: read [fd (as int)] nbytes\n");
+        return -1;
+    }
+    if(running->fd[fd]==NULL)
+    {
+        printf("Error: must select a valid file descriptor\n");
+        return -1;
+    }
+    if((running->fd[fd]->mode!=0)&&(running->fd[fd]->mode!=2))
+    {
+        printf("Error: file must be opened for read\n");
+        return -1;
+    }
+    return myread(fd,read_buff,bytes);
+}
+
+
+// reads nbtytes from a file specified by fd in to buffer my buff
+
+int myread(int fd,char* m_buff,long nbytes)
+{
+    long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
+    long lblk,startByte,blk;
+    int count = 0;
+    while ((nbytes>0)&&(size>0))
+    {
+        lblk = running->fd[fd]->offset / BLOCK_SIZE;
+        startByte = running->fd[fd]->offset % BLOCK_SIZE;
+        if (lblk < 12)
+        {
+            blk = running->fd[fd]->minodeptr->INODE.i_block[lblk];
+        }
+        else if ((lblk >= 12)&&(lblk<256+12))
+        {
+            //indirect
+        }
+        else
+        {
+            //double indirect
+        }
+        get_block(running->fd[fd]->minodeptr->dev,blk,read_buff);
+        char *cq = buff;
+        char *cp = read_buff +startByte;
+        int remain = BLOCK_SIZE - startByte;
+
+        while (remain > 0)
+        {
+            *cq++ = *cp++;
+            running->fd[fd]->offset++;
+            count++;
+            size--; nbytes--; remain--;
+            if ((nbytes <= 0)||(size<=0))
+                break;
+        }
+    }
+    printf("myread : read %d char from file %d\n", count,fd);
+}
+
 int my_creat_file(MINODE *pip, char *name) /*{{{*/
 {
 	int inumber, bnumber, dev,i ;

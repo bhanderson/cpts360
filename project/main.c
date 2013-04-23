@@ -5,6 +5,7 @@ int main(int argc, const char *argv[])
 	char line[128], command[32], path[64], filepath[64],scndpath[64];
 	int cmd;
     long tmp;
+    int tmp2,tmp3;
 
 	init();
 
@@ -59,7 +60,9 @@ int main(int argc, const char *argv[])
 				close_file(path[0]-48);
 				break;
 			case 11:
-//				read_file();
+                sscanf(path,"%i",&tmp2);
+                sscanf(scndpath,"%li",&tmp3);
+				read_file(tmp2,tmp3);
 				break;
 			case 12:
 //				write_file();
