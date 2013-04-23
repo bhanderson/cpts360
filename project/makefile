@@ -1,2 +1,2 @@
 all:
-	gcc -g types.h header.h main.c -o sim.out
+	clang -g main.c ext2.c header.h types.h -time 
