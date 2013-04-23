@@ -457,21 +457,21 @@ unsigned long ialloc(int dev) /*{{{*/
 	return 0;
 } /*}}}*/
 //Allocates a OFT pointer and assigns it to the next availble spot in the running process
-int falloc(OFT* oftp)
+int falloc(OFT* oftp) /*{{{*/
 {
-    int i = 0;
-    for(i=0;i<10;i++)
-    {
-        if (running->fd[i]==NULL)
-            break;
-    }
-    if (i==10)
-    {
-        return -1;
-    }
-    running->fd[i]=oftp;
-    return i;
-}
+	int i = 0;
+	for(i=0;i<10;i++)
+	{
+		if (running->fd[i]==NULL)
+			break;
+	}
+	if (i==10)
+	{
+		return -1;
+	}
+	running->fd[i]=oftp;
+	return i;
+} /*}}}*/
 
 /* deallocate the ino that was allocated
  */
@@ -487,117 +487,117 @@ void idealloc(int dev, unsigned long ino) /*{{{*/
 /* deallocates all of the dataBlocks for an inode */
 void deallocateInodeDataBlocks(int dev, MINODE* mip) /*{{{*/
 {
-    char bitmap[1024],dblindbuff[1024];
-    int i = 0;
-    int j = 0;
-    int indblk,dblindblk;
-    unsigned long *indirect,*doubleindirect;
-    get_block(dev,BBITMAP,bitmap);
-    for ( i = 0; i<12; i++)
-    {
-        if (mip->INODE.i_block[i]!=0)
-        {
-            clearbit(bitmap, mip->INODE.i_block[i]-1);
-            mip->INODE.i_block[i]=0;
-        }
-        else
-        {
-            put_block(dev,BBITMAP,bitmap);
-            return ;
-        }
-    }
-    // on to indirect blocks
-    if (mip->INODE.i_block[i]!=0)
-    {
-        indblk = mip->INODE.i_block[i];
-        get_block(dev,indblk,buff);
-        indirect = buff;
-        for (i=0;i<256;i++)
-        {
-            if(*indirect != 0)
-            {
-                clearbit(bitmap, *indirect-1);
-                *indirect = 0;
-                indirect++;
-            }
-            else
-            {
-                clearbit(bitmap, indblk-1);
-                put_block(dev,indblk,buff);
-                put_block(dev,BBITMAP,bitmap);
-                mip->INODE.i_block[12] = 0;
-                return;
-            }
-        }
-    }
-    else
-    {
-            put_block(dev,BBITMAP,bitmap);
-            return;
-    }
-    //then double indirect
-    if (mip->INODE.i_block[13]!=0)
-    {
-        dblindblk = mip->INODE.i_block[13];
-        get_block(dev,dblindblk,dblindbuff);
-        doubleindirect = dblindbuff;
-        for (i=0;i<256;i++)
-        {
-            indblk = *doubleindirect;
-            get_block(dev,indblk,buff);
-            indirect = buff;
-            for (j=0;j<256;j++)
-            {
-                if(*indirect != 0)
-                {
-                    clearbit(bitmap, *indirect-1);
-                    *indirect = 0;
-                    indirect++;
-                }
-                else
-                {
-                    clearbit(bitmap, indblk-1);
-                    clearbit(bitmap, dblindblk-1);
-                    put_block(dev,indblk,buff);
-                    put_block(dev,BBITMAP,bitmap);
-                    put_block(dev,dblindblk,dblindbuff);
-                    mip->INODE.i_block[13] = 0;
-                    return;
-                }
-                clearbit(bitmap, indblk-1);
+	char bitmap[1024],dblindbuff[1024];
+	int i = 0;
+	int j = 0;
+	int indblk,dblindblk;
+	unsigned long *indirect,*doubleindirect;
+	get_block(dev,BBITMAP,bitmap);
+	for ( i = 0; i<12; i++)
+	{
+		if (mip->INODE.i_block[i]!=0)
+		{
+			clearbit(bitmap, mip->INODE.i_block[i]-1);
+			mip->INODE.i_block[i]=0;
+		}
+		else
+		{
+			put_block(dev,BBITMAP,bitmap);
+			return ;
+		}
+	}
+	// on to indirect blocks
+	if (mip->INODE.i_block[i]!=0)
+	{
+		indblk = mip->INODE.i_block[i];
+		get_block(dev,indblk,buff);
+		indirect = buff;
+		for (i=0;i<256;i++)
+		{
+			if(*indirect != 0)
+			{
+				clearbit(bitmap, *indirect-1);
+				*indirect = 0;
+				indirect++;
+			}
+			else
+			{
+				clearbit(bitmap, indblk-1);
+				put_block(dev,indblk,buff);
+				put_block(dev,BBITMAP,bitmap);
+				mip->INODE.i_block[12] = 0;
+				return;
+			}
+		}
+	}
+	else
+	{
+		put_block(dev,BBITMAP,bitmap);
+		return;
+	}
+	//then double indirect
+	if (mip->INODE.i_block[13]!=0)
+	{
+		dblindblk = mip->INODE.i_block[13];
+		get_block(dev,dblindblk,dblindbuff);
+		doubleindirect = dblindbuff;
+		for (i=0;i<256;i++)
+		{
+			indblk = *doubleindirect;
+			get_block(dev,indblk,buff);
+			indirect = buff;
+			for (j=0;j<256;j++)
+			{
+				if(*indirect != 0)
+				{
+					clearbit(bitmap, *indirect-1);
+					*indirect = 0;
+					indirect++;
+				}
+				else
+				{
+					clearbit(bitmap, indblk-1);
+					clearbit(bitmap, dblindblk-1);
+					put_block(dev,indblk,buff);
+					put_block(dev,BBITMAP,bitmap);
+					put_block(dev,dblindblk,dblindbuff);
+					mip->INODE.i_block[13] = 0;
+					return;
+				}
+				clearbit(bitmap, indblk-1);
 
-            }
-            doubleindirect++;
-            if (*doubleindirect == 0)
-            {//edge case handling
-                clearbit(bitmap, indblk-1);
-                clearbit(bitmap, dblindblk-1);
-                put_block(dev,indblk,buff);
-                put_block(dev,BBITMAP,bitmap);
-                put_block(dev,dblindblk,dblindbuff);
-                mip->INODE.i_block[13] = 0;
-                return;
-            }
-        }
-    }
-    else
-    {
-            put_block(dev,BBITMAP,bitmap);
-            return;
-    }
+			}
+			doubleindirect++;
+			if (*doubleindirect == 0)
+			{//edge case handling
+				clearbit(bitmap, indblk-1);
+				clearbit(bitmap, dblindblk-1);
+				put_block(dev,indblk,buff);
+				put_block(dev,BBITMAP,bitmap);
+				put_block(dev,dblindblk,dblindbuff);
+				mip->INODE.i_block[13] = 0;
+				return;
+			}
+		}
+	}
+	else
+	{
+		put_block(dev,BBITMAP,bitmap);
+		return;
+	}
 
 } /*}}}*/
 
 //an extension of the deallocate =InodeDataBlocksFunction
-void do_truncate(int dev, MINODE *mip)
+void do_truncate(int dev, MINODE *mip) /*{{{*/
 {
-    deallocateInodeDataBlocks(dev,mip);
-    mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
-    mip->INODE.i_size = 0;
-    mip->dirty = 1;
+	deallocateInodeDataBlocks(dev,mip);
+	mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
+	mip->INODE.i_size = 0;
+	mip->dirty = 1;
 
 
-}
+} /*}}}*/
 
 /* finds and allocates a free blockbitmap bit for data, returns the number found
  * working dont touch
@@ -673,7 +673,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 	// if ls cwd
 	else if(pathname[0]	<=0){
 		printf("current dir: Ino %lu, Iblock[0]= %lu\n",(long unsigned
-		int)parent->cwd->ino, (long unsigned int)parent->cwd->INODE.i_block[0]);
+					int)parent->cwd->ino, (long unsigned int)parent->cwd->INODE.i_block[0]);
 		printdir(&parent->cwd->INODE);
 		return;
 	}
@@ -718,7 +718,7 @@ void printdir(INODE *inodePtr) /*{{{*/
 		if(S_ISREG( mip->INODE.i_mode ) ) printf("r");
 		if(S_ISDIR( mip->INODE.i_mode ) ) printf("d");
 		if(S_ISLNK( mip->INODE.i_mode ) ) printf("l");
-//		printf("\n");
+		//		printf("\n");
 		// user permissions
 		printf((mip->INODE.i_mode & 1 << 8) ? "r" : "-");
 		printf((mip->INODE.i_mode & 1 << 7) ? "w" : "-");
@@ -737,10 +737,10 @@ void printdir(INODE *inodePtr) /*{{{*/
 		ctime_r((time_t *)&mip->INODE.i_mtime, time_s);
 		time_s[strlen(time_s)-1]=0;
 		printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
-		mip->INODE.i_gid, mip->INODE.i_size, time_s);
-//		char name[dp->name_len+1];
+				mip->INODE.i_gid, mip->INODE.i_size, time_s);
+		//		char name[dp->name_len+1];
 		memmove(name, dp->name, dp->name_len);
-//		memcpy(name,dp->name,dp->name_len);
+		//		memcpy(name,dp->name,dp->name_len);
 		name[dp->name_len]='\0';
 		if(S_ISLNK( mip->INODE.i_mode)){
 			printf("%16s->%s\n",name,(char *)mip->INODE.i_block);
@@ -825,93 +825,93 @@ void pwd(MINODE *wd, int childIno) /*{{{*/
 
 //prints the currently open file descriptors and their modes
 //TODO pretty up the formatting for long file names (currently the tab spacing goes off)
-int pfd()
+int pfd() /*{{{*/
 {
-    int i;
-    printf("Filename\tFD\tmode\toffset\n");
-    printf("--------\t--\t----\t------\n");
-    for(i = 0;i<10;i++)
-    {
-        if (running->fd[i]!= NULL)
-        {
-            printfilepath(running->fd[i]->minodeptr);
-            printf("\t\t%d\t",i);
-            switch(running->fd[i]->mode)
-            {
-                case 0:
-                    printf("READ\t");
-                    break;
-                case 1:
-                    printf("WRITE\t");
-                    break;
-                case 2:
-                    printf("R/W\t");
-                    break;
-                case 3:
-                    printf("APPEND\t");
-                    break;
-                default:
-                    printf("??????\t");//this should never happen
-                    break;
-            }
-            printf("%li\n",running->fd[i]->offset);
-        }
-    }
-}
+	int i;
+	printf("Filename\tFD\tmode\toffset\n");
+	printf("--------\t--\t----\t------\n");
+	for(i = 0;i<10;i++)
+	{
+		if (running->fd[i]!= NULL)
+		{
+			printfilepath(running->fd[i]->minodeptr);
+			printf("\t\t%d\t",i);
+			switch(running->fd[i]->mode)
+			{
+				case 0:
+					printf("READ\t");
+					break;
+				case 1:
+					printf("WRITE\t");
+					break;
+				case 2:
+					printf("R/W\t");
+					break;
+				case 3:
+					printf("APPEND\t");
+					break;
+				default:
+					printf("??????\t");//this should never happen
+					break;
+			}
+			printf("%li\n",running->fd[i]->offset);
+		}
+	}
+} /*}}}*/
 
 //prints the path to the current file
-int printfilepath(MINODE* mip)
+int printfilepath(MINODE* mip) /*{{{*/
 {
-    int ino = mip->ino;
-    MINODE* pip = findParent(mip,root);
-    pwd(pip,0);
-    int i;
-    DIR *dp;
-    char* cp,name[64];
-    for (i = 0; i < 12; i++) {
-        get_block(fd,pip->INODE.i_block[i],buff);
-	    if ( pip->INODE.i_block[i]==0)
-	    {
-	        break;
-	    }
+	int ino = mip->ino;
+	MINODE* pip = findParent(mip,root);
+	pwd(pip,0);
+	int i;
+	DIR *dp;
+	char* cp,name[64];
+	for (i = 0; i < 12; i++) {
+		get_block(fd,pip->INODE.i_block[i],buff);
+		if ( pip->INODE.i_block[i]==0)
+		{
+			break;
+		}
 		cp = buff;
 		dp = (DIR *) buff;
 
 		//get rid of the first two entries or we will be stuck forever
 		cp += dp->rec_len;
-        dp = (DIR *)cp;
-        cp += dp->rec_len;
-        dp = (DIR *)cp;
-        //Depth first search
+		dp = (DIR *)cp;
+		cp += dp->rec_len;
+		dp = (DIR *)cp;
+		//Depth first search
 		while(cp < buff + 1024){
 			if (dp->inode == mip->ino)
 			{
-			    strncpy(name,dp->name,dp->name_len);
-			    name[dp->name_len] = '\0';
-                printf("%s",name);
+				strncpy(name,dp->name,dp->name_len);
+				name[dp->name_len] = '\0';
+				printf("%s",name);
 			}
-			 cp += dp->rec_len;
-            dp = (DIR *)cp;
+			cp += dp->rec_len;
+			dp = (DIR *)cp;
 
 
-        }
-    }
+		}
+	}
 
-}
+} /*}}}*/
 //Recusive depth first search function to find the parent
 //THIS IS BAD, THERE MUST BE A BETTER WAY
-MINODE* findParent(MINODE* mip,MINODE* pip)
+MINODE* findParent(MINODE* mip,MINODE* pip) /*{{{*/
 {
-    MINODE* result;
-    DIR *dp;
-    char* cp;
+	MINODE* result;
+	DIR *dp;
+	char* cp;
 	int i,j;
 	char tmpbuff[1024];
 	for (i = 0; i < 12; i++) {
-	    if ( pip->INODE.i_block[i]==0)
-	    {
-	        break;
-	    }
+		if ( pip->INODE.i_block[i]==0)
+		{
+			break;
+		}
 		cp = tmpbuff;
 		dp = (DIR *) tmpbuff;
 
@@ -920,32 +920,33 @@ MINODE* findParent(MINODE* mip,MINODE* pip)
 		read(fd, tmpbuff, 1024);
 		//get rid of the first two entries or we will be stuck forever
 		cp += dp->rec_len;
-        dp = (DIR *)cp;
-        cp += dp->rec_len;
-        dp = (DIR *)cp;
-        //Depth first search
+		dp = (DIR *)cp;
+		cp += dp->rec_len;
+		dp = (DIR *)cp;
+		//Depth first search
 		while(cp < tmpbuff + 1024){
 			if (dp->inode == mip->ino)
-                return pip;
-            else
-            {
-                MINODE* cip = iget(fd, dp->inode);
-                if (S_ISDIR( cip->INODE.i_mode))
-                {
-                    result = findParent(mip,cip);
-                    if (result!=NULL)
-                        return result;
-                }
+				return pip;
+			else
+			{
+				MINODE* cip = iget(fd, dp->inode);
+				if (S_ISDIR( cip->INODE.i_mode))
+				{
+					result = findParent(mip,cip);
+					if (result!=NULL)
+						return result;
+				}
 
-            }
+			}
 
-            cp += dp->rec_len;
-            dp = (DIR *)cp;
+			cp += dp->rec_len;
+			dp = (DIR *)cp;
 
 		}
 	}
 	return NULL;
-}
+} /*}}}*/
+
 void mystat(char *path){ /*{{{*/
 	struct stat mystat;
 	int r = do_stat(path, &mystat);
@@ -1052,197 +1053,198 @@ int creat_file(char *path) /*{{{*/
 
 
 } /*}}}*/
-int open_file(char* path,char mode)
+
+int open_file(char* path,char mode) /*{{{*/
 {
-    if ((path[0]=='\0')||(mode=='\0'))
-    {
-        printf("SYNTAX: open [path] [mode (as int)]\n");
-        printf("Modes: 0 = READ, 1 = WRITE, 2 = READ/WRITE, 3 = APPEND\n");
-        return -1;
-    }
-    int ino = getino(fd,path);
-    int i;
-    int index;
-    MINODE * mip = iget(fd,ino);
-    if (!S_ISREG( mip->INODE.i_mode ))
-    {
-        printf("Error: file must be regular\n");
-        return -1;
-    }
-    //check to see whether it is already open with an incompatable type
-    for(i =0;i<10;i++)
-    {
-        if (running->fd[i] != 0)
-        {
-            if (running->fd[i]->minodeptr == mip)
-            {
-                if (running->fd[i]->mode>0)
-                {
-                    printf("Error: File already opened for writing\n");
-                    return -1;
-                }
-            }
-        }
-    }
-    OFT* oftp;
-    oftp = malloc(sizeof(OFT));
-    index = falloc(oftp);
-    if (index == -1)
-    {
-        printf("Error: No open file descriptor slots in running process \n");
-        return -1;
-    }
-    oftp->mode = mode-48;
-    oftp->refCount = 1;
-    oftp->minodeptr = mip;
-    switch(oftp->mode)
-    {
-        case 0:
-            oftp->offset = 0;
-            break;
-        case 1:
-            oftp->offset = 0;
-            break;
-        case 2:
-            oftp->offset = 0;
-            break;
-        case 3:
-            oftp->offset = mip->INODE.i_size;
-            break;
-        default:
-            printf("invalid mode\n");
-            running->fd[index]=0;
-            return -1;
-    }
-    mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
-    mip->dirty;
-    return i;
+	if ((path[0]=='\0')||(mode=='\0'))
+	{
+		printf("SYNTAX: open [path] [mode (as int)]\n");
+		printf("Modes: 0 = READ, 1 = WRITE, 2 = READ/WRITE, 3 = APPEND\n");
+		return -1;
+	}
+	int ino = getino(fd,path);
+	int i;
+	int index;
+	MINODE * mip = iget(fd,ino);
+	if (!S_ISREG( mip->INODE.i_mode ))
+	{
+		printf("Error: file must be regular\n");
+		return -1;
+	}
+	//check to see whether it is already open with an incompatable type
+	for(i =0;i<10;i++)
+	{
+		if (running->fd[i] != 0)
+		{
+			if (running->fd[i]->minodeptr == mip)
+			{
+				if (running->fd[i]->mode>0)
+				{
+					printf("Error: File already opened for writing\n");
+					return -1;
+				}
+			}
+		}
+	}
+	OFT* oftp;
+	oftp = malloc(sizeof(OFT));
+	index = falloc(oftp);
+	if (index == -1)
+	{
+		printf("Error: No open file descriptor slots in running process \n");
+		return -1;
+	}
+	oftp->mode = mode-48;
+	oftp->refCount = 1;
+	oftp->minodeptr = mip;
+	switch(oftp->mode)
+	{
+		case 0:
+			oftp->offset = 0;
+			break;
+		case 1:
+			oftp->offset = 0;
+			break;
+		case 2:
+			oftp->offset = 0;
+			break;
+		case 3:
+			oftp->offset = mip->INODE.i_size;
+			break;
+		default:
+			printf("invalid mode\n");
+			running->fd[index]=0;
+			return -1;
+	}
+	mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
+	mip->dirty;
+	return i;
 
 
 
 
-}
+} /*}}}*/
 //seeks to a certain offset in an open file
-int lseek_file(int fd, long position)
+int lseek_file(int fd, long position) /*{{{*/
 {
-    if (fd==-48)
-    {
-        printf("SYNTAX: lseek [fd (as int)] [offset (as long)]\n");
-        return -1;
-    }
-    if (position>running->fd[fd]->minodeptr->INODE.i_size)
-    {
-        printf("ERROR: File length overrun\n");
-        return -1;
-    }
-    else if(position<0)
-    {
-        printf("ERROR: Cannot Lseek a negitive number\n");
-        return -1;
-    }
-    long original = running->fd[fd]->offset;
-    running->fd[fd]->offset = position;
-    return original;
-}
+	if (fd==-48)
+	{
+		printf("SYNTAX: lseek [fd (as int)] [offset (as long)]\n");
+		return -1;
+	}
+	if (position>running->fd[fd]->minodeptr->INODE.i_size)
+	{
+		printf("ERROR: File length overrun\n");
+		return -1;
+	}
+	else if(position<0)
+	{
+		printf("ERROR: Cannot Lseek a negitive number\n");
+		return -1;
+	}
+	long original = running->fd[fd]->offset;
+	running->fd[fd]->offset = position;
+	return original;
+} /*}}}*/
 
 
 //closes a file with the specified file descriptor
-int close_file(int fd)
+int close_file(int fd) /*{{{*/
 {
-    MINODE* mip;
-    if (fd==-48)
-    {
-        printf("SYNTAX: close [fd (as int)]\n");
-        return -1;
-    }
-    if ((fd>=10)||(fd<0))
-    {
-        printf("Error: Invalid File descriptor \n");
-        return -1;
-    }
-    if (running->fd[fd]==NULL)
-    {
-        printf("Error: File descriptor not found \n");
-        return -1;
-    }
-    OFT* oftp = running->fd[fd];
-    running->fd[fd] = 0;
-    oftp->refCount--;
-    if (oftp->refCount > 0)
-        return 0;
-    else //we are the last user of this oft entry
-    {
-        mip = oftp->minodeptr;
-        iput(mip);
-    }
-    return 0;
+	MINODE* mip;
+	if (fd==-48)
+	{
+		printf("SYNTAX: close [fd (as int)]\n");
+		return -1;
+	}
+	if ((fd>=10)||(fd<0))
+	{
+		printf("Error: Invalid File descriptor \n");
+		return -1;
+	}
+	if (running->fd[fd]==NULL)
+	{
+		printf("Error: File descriptor not found \n");
+		return -1;
+	}
+	OFT* oftp = running->fd[fd];
+	running->fd[fd] = 0;
+	oftp->refCount--;
+	if (oftp->refCount > 0)
+		return 0;
+	else //we are the last user of this oft entry
+	{
+		mip = oftp->minodeptr;
+		iput(mip);
+	}
+	return 0;
 
 
 
 
-}
+} /*}}}*/
 //the handler for user input into read
-int read_file(int fd, long bytes)
+int read_file(int fd, long bytes) /*{{{*/
 {
-    if ((fd>=10)||(fd<0))
-    {
-        printf("SYNTAX: read [fd (as int)] nbytes\n");
-        return -1;
-    }
-    if(running->fd[fd]==NULL)
-    {
-        printf("Error: must select a valid file descriptor\n");
-        return -1;
-    }
-    if((running->fd[fd]->mode!=0)&&(running->fd[fd]->mode!=2))
-    {
-        printf("Error: file must be opened for read\n");
-        return -1;
-    }
-    return myread(fd,read_buff,bytes);
-}
+	if ((fd>=10)||(fd<0))
+	{
+		printf("SYNTAX: read [fd (as int)] nbytes\n");
+		return -1;
+	}
+	if(running->fd[fd]==NULL)
+	{
+		printf("Error: must select a valid file descriptor\n");
+		return -1;
+	}
+	if((running->fd[fd]->mode!=0)&&(running->fd[fd]->mode!=2))
+	{
+		printf("Error: file must be opened for read\n");
+		return -1;
+	}
+	return myread(fd,read_buff,bytes);
+} /*}}}*/
 
 
 // reads nbtytes from a file specified by fd in to buffer my buff
 
-int myread(int fd,char* m_buff,long nbytes)
+int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 {
-    long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
-    long lblk,startByte,blk;
-    int count = 0;
-    while ((nbytes>0)&&(size>0))
-    {
-        lblk = running->fd[fd]->offset / BLOCK_SIZE;
-        startByte = running->fd[fd]->offset % BLOCK_SIZE;
-        if (lblk < 12)
-        {
-            blk = running->fd[fd]->minodeptr->INODE.i_block[lblk];
-        }
-        else if ((lblk >= 12)&&(lblk<256+12))
-        {
-            //indirect
-        }
-        else
-        {
-            //double indirect
-        }
-        get_block(running->fd[fd]->minodeptr->dev,blk,read_buff);
-        char *cq = buff;
-        char *cp = read_buff +startByte;
-        int remain = BLOCK_SIZE - startByte;
+	long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
+	long lblk,startByte,blk;
+	int count = 0;
+	while ((nbytes>0)&&(size>0))
+	{
+		lblk = running->fd[fd]->offset / BLOCK_SIZE;
+		startByte = running->fd[fd]->offset % BLOCK_SIZE;
+		if (lblk < 12)
+		{
+			blk = running->fd[fd]->minodeptr->INODE.i_block[lblk];
+		}
+		else if ((lblk >= 12)&&(lblk<256+12))
+		{
+			//indirect
+		}
+		else
+		{
+			//double indirect
+		}
+		get_block(running->fd[fd]->minodeptr->dev,blk,read_buff);
+		char *cq = buff;
+		char *cp = read_buff +startByte;
+		int remain = BLOCK_SIZE - startByte;
 
-        while (remain > 0)
-        {
-            *cq++ = *cp++;
-            running->fd[fd]->offset++;
-            count++;
-            size--; nbytes--; remain--;
-            if ((nbytes <= 0)||(size<=0))
-                break;
-        }
-    }
-    printf("myread : read %d char from file %d\n", count,fd);
-}
+		while (remain > 0)
+		{
+			*cq++ = *cp++;
+			running->fd[fd]->offset++;
+			count++;
+			size--; nbytes--; remain--;
+			if ((nbytes <= 0)||(size<=0))
+				break;
+		}
+	}
+	printf("myread : read %d char from file %d\n", count,fd);
+} /*}}}*/
 
 int my_creat_file(MINODE *pip, char *name) /*{{{*/
 {
@@ -1331,7 +1333,7 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 /* unlinks a file, if the file is the last link, deletes the file and unallocates it's datablock and inode */
 int do_unlink(char* path) /*{{{*/
 {
-    //check for user error
+	//check for user error
 	if (path[0]=='\0'){
 		printf("Syntax: unlink [path]\n");
 		return -1;
@@ -1346,14 +1348,14 @@ int do_unlink(char* path) /*{{{*/
 		strcpy(name,path);
 	}
 	else{
-	    //this
-	    *(cp) = '\0';
+		//this
+		*(cp) = '\0';
 		strcpy(parentdir, path);
 		parent = getino(fd,parentdir);
 		strcpy(name,cp+1);
 	}
-    target = getino(fd,path);
-    if ((target==0)||(parent==0)){
+	target = getino(fd,path);
+	if ((target==0)||(parent==0)){
 		printf("Error: File must exist\n");
 		return -1;
 	}
@@ -1373,7 +1375,7 @@ int do_unlink(char* path) /*{{{*/
 	targetip->dirty=1;
 	iput(targetip);
 
-    return deleteChild(pip,name);
+	return deleteChild(pip,name);
 
 
 
@@ -1401,8 +1403,8 @@ int do_link(char* oldpath,char* newpath) /*{{{*/
 		strcpy(name,newpath);
 	}
 	else{
-	    //this
-	    *(cp) = '\0';
+		//this
+		*(cp) = '\0';
 		strcpy(parentdir, newpath);
 		parent = getino(fd,parentdir);
 		strcpy(name,cp+1);
@@ -1519,7 +1521,7 @@ int do_symlink(char *oldpath, char *newpath){ /*{{{*/
 int rm_file(char* path) /*{{{*/
 {
 
-    //check for user error
+	//check for user error
 	if (path[0]=='\0'){
 		printf("Syntax: rm [path]\n");
 		return -1;
@@ -1534,28 +1536,28 @@ int rm_file(char* path) /*{{{*/
 		strcpy(name,path);
 	}
 	else{
-	    //this
-	    *(cp) = '\0';
+		//this
+		*(cp) = '\0';
 		strcpy(parentdir, path);
 		parent = getino(fd,parentdir);
 		strcpy(name,cp+1);
 	}
-    target = getino(fd,path);
-    if ((target==0)||(parent==0)){
+	target = getino(fd,path);
+	if ((target==0)||(parent==0)){
 		printf("Error: File must exist\n");
 		return -1;
 	}
 	pip = iget(fd,parent);
 	targetip = iget(fd,target);
-    if((targetip->INODE.i_mode & 0100000) != 0100000){
+	if((targetip->INODE.i_mode & 0100000) != 0100000){
 		iput(pip);
 		printf("Error: cannot rm a non regular file\n");
 		return -1;
 	}
-    deallocateInodeDataBlocks(fd,targetip);
-    //TODO deallocate Inode
+	deallocateInodeDataBlocks(fd,targetip);
+	//TODO deallocate Inode
 
-    deleteChild(pip,name);
+	deleteChild(pip,name);
 
 } /*}}}*/
 
@@ -1563,7 +1565,7 @@ int rm_file(char* path) /*{{{*/
 /* deletes an empty folder */
 int do_rmdir(char* path) /*{{{*/
 {
-    //check for user error
+	//check for user error
 	if (path[0]=='\0'){
 		printf("Syntax: rmdir [path]\n");
 		return -1;
@@ -1578,20 +1580,20 @@ int do_rmdir(char* path) /*{{{*/
 		strcpy(name,path);
 	}
 	else{
-	    //this
-	    *(cp) = '\0';
+		//this
+		*(cp) = '\0';
 		strcpy(parentdir, path);
 		parent = getino(fd,parentdir);
 		strcpy(name,cp+1);
 	}
-    target = getino(fd,path);
-    if ((target==0)||(parent==0)){
+	target = getino(fd,path);
+	if ((target==0)||(parent==0)){
 		printf("Error: File must exist\n");
 		return -1;
 	}
 	pip = iget(fd,parent);
 	targetip = iget(fd,target);
-    if((targetip->INODE.i_mode & 0040000) != 0040000){
+	if((targetip->INODE.i_mode & 0040000) != 0040000){
 		iput(pip);
 		printf("Error: cannot rmdir a non dir\n");
 		return -1;
@@ -1604,15 +1606,15 @@ int do_rmdir(char* path) /*{{{*/
 	dp = (DIR*) cp;
 	if (dp->rec_len != 1012)
 	{
-        printf("Errpr: Dir must be empty \n");
-        return -1;
-    }
+		printf("Errpr: Dir must be empty \n");
+		return -1;
+	}
 
-    deallocateInodeDataBlocks(fd,targetip);
-    //TODO Deallocate DIR Inode
+	deallocateInodeDataBlocks(fd,targetip);
+	//TODO Deallocate DIR Inode
 
-    //Then we have to delete the directory entry
-    deleteChild(pip,name);
+	//Then we have to delete the directory entry
+	deleteChild(pip,name);
 
 
 
@@ -1620,74 +1622,74 @@ int do_rmdir(char* path) /*{{{*/
 
 /* Deletes the child of a minode with name name */
 int deleteChild(MINODE* pip,char* name){ /*{{{*/
-    get_block(fd,pip->INODE.i_block[0],buff);
+	get_block(fd,pip->INODE.i_block[0],buff);
 
 	char* cp = buff;
 	DIR* dp = (DIR *) buff;
 	int tmp,i,flag,last;
 	last = 0;
-    i =  0;
-    char* endcp = buff;
-    //find the item at the end of the buffer
+	i =  0;
+	char* endcp = buff;
+	//find the item at the end of the buffer
 	while(endcp+dp->rec_len < buff +1024) {
 		endcp += dp->rec_len;
 		dp = (DIR *)endcp;
 	}
 	dp =(DIR *) cp;
-    while (cp < buff+1024)
-    {
-        if (dp->name_len == strlen(name))
-        {
-            if (strncmp(name,dp->name,dp->name_len)==0)
-            {
-                //do file delete operation
-                tmp = dp->rec_len;
-                if (cp == endcp)//if the item we are deleting is at the end we need to look at the last item and increase its rec_length
-                {
-                    dp = (DIR *) last;
-                    dp->rec_len += tmp;
-                    break;
-                }
-                else
-                {
-                    dp = (DIR *) endcp;
-                    dp->rec_len += tmp;
-                    //copy 1024 - current position - record length bytes from the end of the record to the end of the buffer over the current record
-                    memcpy(cp,cp+tmp,1024 - i - tmp);
-                }
-                //we wiped out the value of dp->rec_len so we need to use tmp
-                break;
-            }
-        }
-        last = cp;
-        i += dp->rec_len;
-        cp += dp->rec_len;
-        dp = (DIR *)cp;
-    }
-    put_block(fd,pip->INODE.i_block[0],buff);
+	while (cp < buff+1024)
+	{
+		if (dp->name_len == strlen(name))
+		{
+			if (strncmp(name,dp->name,dp->name_len)==0)
+			{
+				//do file delete operation
+				tmp = dp->rec_len;
+				if (cp == endcp)//if the item we are deleting is at the end we need to look at the last item and increase its rec_length
+				{
+					dp = (DIR *) last;
+					dp->rec_len += tmp;
+					break;
+				}
+				else
+				{
+					dp = (DIR *) endcp;
+					dp->rec_len += tmp;
+					//copy 1024 - current position - record length bytes from the end of the record to the end of the buffer over the current record
+					memcpy(cp,cp+tmp,1024 - i - tmp);
+				}
+				//we wiped out the value of dp->rec_len so we need to use tmp
+				break;
+			}
+		}
+		last = cp;
+		i += dp->rec_len;
+		cp += dp->rec_len;
+		dp = (DIR *)cp;
+	}
+	put_block(fd,pip->INODE.i_block[0],buff);
 
 
 } /*}}}*/
 
-int tstbit(char *buf, int BIT) {
-    int i, j;
-    i = BIT / 8;
-    j = BIT % 8;
-    return buf[i] & (1 << j);
-}
+int tstbit(char *buf, int BIT) { /*{{{*/
+	int i, j;
+	i = BIT / 8;
+	j = BIT % 8;
+	return buf[i] & (1 << j);
+} /*}}}*/
 
-int setbit(char *buf, int BIT) {
-    int i, j;
-    i = BIT / 8;
-    j = BIT % 8;
-    buf[i] |= (1 << j);
-    return 1;
-}
+int setbit(char *buf, int BIT) { /*{{{*/
+	int i, j;
+	i = BIT / 8;
+	j = BIT % 8;
+	buf[i] |= (1 << j);
+	return 1;
+} /*}}}*/
 
-int clearbit(char *buf, int BIT) {
-    int i, j;
-    i = BIT / 8;
-    j = BIT % 8;
-    buf[i] &= ~(1 << j);
-    return 1;
-}
+int clearbit(char *buf, int BIT) { /*{{{*/
+	int i, j;
+	i = BIT / 8;
+	j = BIT % 8;
+	buf[i] &= ~(1 << j);
+	return 1;
+} /*}}}*/
