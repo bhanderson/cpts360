@@ -620,6 +620,10 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 
 		while(token !=NULL) {
 			inodeIndex =search(cwd, token);
+			if (inodeIndex==0) {
+				printf("cannot find that directory\n");
+				return;
+			}
 			seek =((inodeIndex-1)/8 + gp->bg_inode_table)*1024+(inodeIndex-1)%8
 				*128;
 
@@ -640,7 +644,7 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 	// if ls cwd
 	else if(pathname[0]	<=0){
 		printf("current dir: Ino %lu, Iblock[0]= %lu\n",(long unsigned
-					int)parent->cwd->ino,(long unsigned int)parent->cwd->INODE.i_block[0]);
+		int)parent->cwd->ino, (long unsigned int)parent->cwd->INODE.i_block[0]);
 		printdir(&parent->cwd->INODE);
 		return;
 	}
@@ -651,6 +655,10 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 
 		while(token!=NULL){
 			inodeIndex=search(cwd,token);
+			if (inodeIndex==0) {
+				printf("cannot find that directory\n");
+				return;
+			}
 			seek=((inodeIndex-1)/8 + gp->bg_inode_table)*1024+
 				(inodeIndex-1)%8* 128;
 			lseek(fd,seek,SEEK_SET);
