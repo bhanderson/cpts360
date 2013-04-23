@@ -711,7 +711,7 @@ void printdir(INODE *inodePtr) /*{{{*/
 	char *cp=fbuff;
 	MINODE *mip;
 	int ino = dp->inode;
-
+	char name[64];
 	while(cp<fbuff+1024)
 	{
 		mip = iget(fd, ino);
@@ -739,10 +739,14 @@ void printdir(INODE *inodePtr) /*{{{*/
 		printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
 		mip->INODE.i_gid, mip->INODE.i_size, time_s);
 		iput(mip);
-		char name[dp->name_len];
-		memcpy(name,dp->name,dp->name_len+1);
+//		char name[dp->name_len+1];
+		memcpy(name,dp->name,dp->name_len);
 		name[dp->name_len]='\0';
-		printf("%16s\n",name);
+		if(S_ISLNK( mip->INODE.i_mode)){
+			printf("%16s->%s\n",name,(char *)mip->INODE.i_block);
+		}else{
+			printf("%16s\n",name);
+		}
 		cp+=dp->rec_len;
 		dp=(DIR *)cp;
 		ino = dp->inode;
@@ -1157,6 +1161,10 @@ int do_symlink(char *oldpath, char *newpath){ /*{{{*/
 		printf("Syntax symlink [oldpath] [newpath]\n");
 		return -1;
 	}
+	if(oldpath[0]!='/'){
+		printf("Oldpath must be absolute path!\n");
+		return -1;
+	}
 	char parentdir[64], name[64], *cp;
 	DIR *dp;
 	MINODE *pip, *targetip;
@@ -1186,7 +1194,8 @@ int do_symlink(char *oldpath, char *newpath){ /*{{{*/
 	targetip->refCount++;
 	targetip->INODE.i_links_count++;
 	targetip->INODE.i_mode = 0xA1A4;
-	memcpy(targetip->INODE.i_block, newpath, strlen(newpath));
+	targetip->INODE.i_size = strlen(oldpath);
+	memcpy(targetip->INODE.i_block, oldpath, strlen(oldpath));
 	iput(targetip);
 
 	return 0;
