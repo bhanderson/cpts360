@@ -60,6 +60,21 @@ void mount_root( char *path ) /*{{{*/
 	running = p1;
 } /*}}}*/
 
+/* Cleans up memory, puts all inodes, and exits the program
+ *
+ */
+void exit_cleanup()
+{
+    int i = 0;
+    //put all dirty inodes
+    for (i = 0; i<100;i++)
+    {
+        if (minode[i].ino != 0)
+            iput(&minode[i]);
+
+    }
+
+}
 /* this function looks for the inode in the minode array and returns.  if it
  * cannot find the minode it loads it from dev and returns the location in
  * minode array.
@@ -535,7 +550,6 @@ int falloc(OFT* oftp) /*{{{*/
  */
 void idealloc(int dev, unsigned long ino) /*{{{*/
 {
-	int i;
 	get_block(dev, IBITMAP, buff);
 	clearbit(buff, ino-1);
 	put_block(dev, IBITMAP, buff);
@@ -662,7 +676,7 @@ void do_truncate(int dev, MINODE *mip) /*{{{*/
  */
 unsigned long balloc( int dev ) /*{{{*/
 {
-	int iter = 0, ind = 0, pos = 0, spaceCount = 0, inodeCount = 0;
+	int iter = 0, inodeCount = 0;
 	char buf[1024];
 
 	inodeCount = sp->s_blocks_count; // /	(BLOCK_SIZE*128);
@@ -687,7 +701,6 @@ unsigned long balloc( int dev ) /*{{{*/
  */
 void bdealloc(int dev, unsigned long block) /*{{{*/
 {
-	int i;
 	get_block(dev, BBITMAP, buff);
 	clearbit(buff, block-1);
 	put_block(dev, BBITMAP, buff);
@@ -926,7 +939,6 @@ int pfd() /*{{{*/
 //prints the path to the current file
 int printfilepath(MINODE* mip) /*{{{*/
 {
-	int ino = mip->ino;
 	MINODE* pip = findParent(mip,root);
 	pwd(pip,0);
 	int i;
@@ -969,7 +981,7 @@ MINODE* findParent(MINODE* mip,MINODE* pip) /*{{{*/
 	MINODE* result;
 	DIR *dp;
 	char* cp;
-	int i,j;
+	int i;
 	char tmpbuff[1024];
 	for (i = 0; i < 12; i++) {
 		if ( pip->INODE.i_block[i]==0)
@@ -1089,7 +1101,16 @@ void mychmod(char *pathname) /*{{{*/
 	printf("new permissions: %o\n", mip->INODE.i_mode);
 	return;
 } /*}}}*/
-
+//sets owner of the file
+int chown_file(char* path,char* scndpath)
+{
+    unsigned long newuid;
+    int ino = getino(fd,path);
+    sscanf(scndpath,"%lu",&newuid);
+    MINODE* mip = iget(fd,ino);
+    mip->INODE.i_uid = newuid;
+    mip->dirty = 1;
+}
 int creat_file(char *path) /*{{{*/
 {
 	char line[128], parent[64], child[64], temp[64];
@@ -1123,6 +1144,26 @@ int creat_file(char *path) /*{{{*/
 
 
 } /*}}}*/
+int rewind_file(int this_fd)
+{
+    if (this_fd == -48)
+    {
+        printf("Syntax: rewind [fd]");
+        return -1;
+    }
+    if ((this_fd < 0)||(this_fd>=10))
+    {
+        printf("Error: invalid file descriptor");
+        return -1;
+    }
+    if (running->fd[this_fd]==0)
+    {
+        printf("Error: file not open");
+    }
+    running->fd[this_fd]->offset = 0;
+    return 0;
+}
+
 
 // 0 read 1 write 2 read/write 3 append
 int open_file(char* path,char mode) /*{{{*/

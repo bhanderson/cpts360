@@ -85,7 +85,7 @@ int main(int argc, const char *argv[])
 				lseek_file(path[0]-48,tmp);
 				break;
 			case 18:
-				//				rewind_file();
+				rewind_file(path[0]-48);
 				break;
 			case 19:
 				mystat(path);
@@ -103,7 +103,7 @@ int main(int argc, const char *argv[])
 				mychmod(path);
 				break;
 			case 24:
-				//				chown_file();
+                chown_file(path,scndpath);
 				break;
 			case 25:
 				//				cs();
@@ -118,7 +118,9 @@ int main(int argc, const char *argv[])
 				//				do_kill();
 				break;
 			case 29:
-				//				quit();
+				printf("Exiting\n");
+				exit_cleanup();
+				exit(0);
 				break;
 			case 30:
 				do_touch(path);
@@ -137,6 +139,7 @@ int main(int argc, const char *argv[])
 				break;
 			case 99:
 				printf("Exiting\n");
+				exit_cleanup();
 				exit(0);
 				break;
 			default:
