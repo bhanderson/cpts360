@@ -1707,3 +1707,19 @@ void my_cat(char *filename) /*{{{*/
 	}
 } /*}}}*/
 
+int write_file()
+{
+	int writefd;
+	char line[128];
+	char string[1024]
+	printf("syntax [fd] [string] ");
+	fgets(line ,128, stdin);
+	line[strlen(line)-1]=0;
+	sscanf(line, "%d %s", writefd, string);
+	if(running->fd[writefd]->mode == 0){
+		printf("error: fd not open for write\n");
+		return -1;
+	}
+
+
+}
