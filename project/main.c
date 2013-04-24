@@ -65,7 +65,7 @@ int main(int argc, const char *argv[])
 				read_file(tmp2,tmp3);
 				break;
 			case 12:
-				write_file();
+				write_file(path,scndpath);
 				break;
 			case 13:
 				my_cat(path);
