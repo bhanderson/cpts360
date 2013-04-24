@@ -1203,8 +1203,7 @@ int read_file(int fd, long bytes)
 }
 
 
-// reads nbtytes from a file specified by fd in to buffer my buff
-
+// reads nbtytes from a file specified by fd in to buffer mbuff
 int myread(int fd,char* m_buff,long nbytes)
 {
     long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
