@@ -2064,7 +2064,7 @@ void mycp(char *src, char *dest){ /*{{{*/
 	return;
 } /*}}}*/
 
-void mymv(char *src, char *dest){
+void mymv(char *src, char *dest){ /*{{{*/
 	int srcfd = open_file(src, '0');
 //	int destino = creat_file(dest);
 //	int destfd = open_file(dest, '1');
@@ -2081,4 +2081,37 @@ void mymv(char *src, char *dest){
 		do_unlink(src);
 	}
 	return;
+} /*}}}*/
+
+void menu()
+{
+	printf(
+			"mkdir: [path] 			creates a directory\n"
+			"cat: [path]    		prints file\n"
+			"cd: [path] 			moves to directory\n"
+			"chmod: [path] 			change file permissions\n"
+			"chown: [path] [uid] 	change file owner\n"
+			"close: [fd] 			close an open file\n"
+			"cp: [src] [dest] 		copies a file\n"
+			"creat: [path] 			creates an empty file\n"
+			"link: [src] [dest] 	hard links a file\n"
+			"ls: [path] 			lists a directory\n"
+			"lseek: [fd] [nbytes] 	sets the offset to nbytes of a file\n"
+			"menu: [no args] 		prints this menu\n"
+			"mv: [src] [dest] 		moves a file\n"
+			"open: [path] [mode] 	opens a file\n"
+			"pfd: [no args] 		shows open files\n"
+			"pwd: [no args] 		shows cwd\n"
+			"read: [fd] [nbytes] 	read a file for nbytes\n"
+			"rewind: [fd] 			resets a file offset to 0\n"
+			"rmdir: [path] 			removes an empty directory\n"
+			"rm: [path] 			removes a file\n"
+			"stat: [path] 			shows file stat\n"
+			"symlink: [src] [dest] 	symbolically links a file\n"
+			"touch: [path] 			changes mtime of a file\n"
+			"unlink: [path] 		unlinks a file\n"
+			"write: [fd] 			writes to a file a string\n"
+			"exit: [no args] 		exits the program\n"
+			);
+
 }

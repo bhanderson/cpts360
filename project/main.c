@@ -94,7 +94,7 @@ int main(int argc, const char *argv[])
 				//				pm();
 				break;
 			case 21:
-				//				menu();
+				menu();
 				break;
 			case 22:
 				//				access_file();

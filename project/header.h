@@ -59,8 +59,7 @@ void mymv(char *src, char *dest);
 void exit_cleanup();
 int chown_file(char* path,char* scndpath);
 int rewind_file(int this_fd);
-
-
+void menu();
 extern PROC *running;
 extern PROC *p0;
 extern PROC *p1;
