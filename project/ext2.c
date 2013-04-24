@@ -485,7 +485,7 @@ unsigned long search(INODE *inodePtr, char *name) /*{{{*/
 			}else{
 				cp += dp->rec_len;
 				dp = (DIR *)cp;
-				if(dp->inode == 0)
+				if((dp->inode == 0) && (inodePtr->i_block[i+1] == 0))//gotta check if the next block is available
 					return 0;
 			}
 		}
