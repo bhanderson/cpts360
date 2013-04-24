@@ -1205,10 +1205,19 @@ int read_file(int fd, long bytes) /*{{{*/
 } /*}}}*/
 
 
-// reads nbtytes from a file specified by fd in to buffer my buff
+
+// reads nbtytes from a file specified by fd in to buffer mbuff
+
 
 int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 {
+    int flag = 0;
+    int doubleflag = 0;
+    char indir_buff[1024],dblindir_buff[1024];
+    long * indirect;
+    long * dblindirect;
+    long superflag = 0;
+    long indblk,dblindblk;
 	long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
 	long lblk,startByte,blk;
 	int count = 0;
@@ -1222,11 +1231,30 @@ int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 		}
 		else if ((lblk >= 12)&&(lblk<256+12))
 		{
-			//indirect
+            if (!flag)//we dont want to get_block for every time we switch lblks, that would be dumb
+            {
+                get_block(running->fd[fd]->minodeptr->dev,running->fd[fd]->minodeptr->INODE.i_block[13],indir_buff);
+                flag = 1;
+            }
+            indirect = buff;
+            blk = *(indirect+(lblk-12));
+
 		}
 		else
 		{
-			//double indirect
+            if (!doubleflag)
+            {
+                get_block(running->fd[fd]->minodeptr->dev,running->fd[fd]->minodeptr->INODE.i_block[14],dblindir_buff);
+                doubleflag = 1;
+            }
+            dblindirect = dblindir_buff;
+            if (superflag != *(dblindirect+((lblk-268) /256)))
+            {
+                superflag = *(dblindirect+((lblk-268) /256));
+                get_block(running->fd[fd]->minodeptr->dev,superflag,indir_buff);
+            }
+            indirect = buff;
+            blk = *(indirect+((lblk-268)%256));
 		}
 		get_block(running->fd[fd]->minodeptr->dev,blk,read_buff);
 		char *cq = buff;
