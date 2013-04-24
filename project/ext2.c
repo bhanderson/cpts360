@@ -1833,7 +1833,7 @@ int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 	}
 
 	mip->dirty = 1;
-
+	iput(mip);
 	printf("write %d char into file fd=%d\n",nbytes, fd);
 	return nbytes;
 } /*}}}*/

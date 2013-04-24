@@ -4,8 +4,8 @@ int main(int argc, const char *argv[])
 {
 	char line[128], command[32], path[64], filepath[64],scndpath[64];
 	int cmd;
-    long tmp;
-    int tmp2,tmp3;
+	long tmp;
+	int tmp2,tmp3;
 
 	init();
 
@@ -40,10 +40,10 @@ int main(int argc, const char *argv[])
 				ls(path, running);
 				break;
 			case 4 :
-//				mount();
+				//				mount();
 				break;
 			case 5 :
-//				umount(pathname);
+				//				umount(pathname);
 				break;
 			case 6 :
 				creat_file(path);
@@ -61,8 +61,8 @@ int main(int argc, const char *argv[])
 				close_file(path[0]-48);
 				break;
 			case 11:
-                sscanf(path,"%i",&tmp2);
-                sscanf(scndpath,"%li",&tmp3);
+				sscanf(path,"%i",&tmp2);
+				sscanf(scndpath,"%li",&tmp3);
 				read_file(tmp2,tmp3);
 				break;
 			case 12:
@@ -73,59 +73,58 @@ int main(int argc, const char *argv[])
 				break;
 			case 14:
 				mycp(path,scndpath);
-				command[0]=0;
 				break;
 			case 15:
-//				mv_file();
+				//				mv_file();
 				break;
 			case 16:
 				pfd();
 				break;
 			case 17:
-                sscanf(scndpath,"%li",&tmp);
+				sscanf(scndpath,"%li",&tmp);
 				lseek_file(path[0]-48,tmp);
 				break;
 			case 18:
-//				rewind_file();
+				//				rewind_file();
 				break;
 			case 19:
 				mystat(path);
 				break;
 			case 20:
-//				pm();
+				//				pm();
 				break;
 			case 21:
-//				menu();
+				//				menu();
 				break;
 			case 22:
-//				access_file();
+				//				access_file();
 				break;
 			case 23:
 				mychmod(path);
 				break;
 			case 24:
-//				chown_file();
+				//				chown_file();
 				break;
 			case 25:
-//				cs();
+				//				cs();
 				break;
 			case 26:
-//				do_fork();
+				//				do_fork();
 				break;
 			case 27:
-//				do_ps();
+				//				do_ps();
 				break;
 			case 28:
-//				do_kill();
+				//				do_kill();
 				break;
 			case 29:
-//				quit();
+				//				quit();
 				break;
 			case 30:
 				do_touch(path);
 				break;
 			case 31:
-//				sync();
+				//				sync();
 				break;
 			case 32:
 				do_link(path,scndpath);
