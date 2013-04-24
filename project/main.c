@@ -8,7 +8,7 @@ int main(int argc, const char *argv[])
 	int tmp2,tmp3;
 
 	init();
-
+	menu();
 	printf("input diskimage: ");
 	fgets(line, 128, stdin);
 	line[strlen(line)-1] = 0; 		// null terminate line
