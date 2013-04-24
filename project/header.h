@@ -50,7 +50,7 @@ int printfilepath(MINODE* mip);
 int lseek_file(int fd, long position);
 int myread(int fd,char* m_buff,long nbytes);
 int read_file(int fd, long bytes);
-
+void my_cat(char *filename);
 
 extern PROC *running;
 extern PROC *p0;

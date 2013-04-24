@@ -68,7 +68,7 @@ int main(int argc, const char *argv[])
 //				write_file();
 				break;
 			case 13:
-//				cat_file();
+				my_cat(path);
 				break;
 			case 14:
 //				cp_file();

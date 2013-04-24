@@ -1054,6 +1054,7 @@ int creat_file(char *path) /*{{{*/
 
 } /*}}}*/
 
+// 0 read 1 write 2 read/write 3 append
 int open_file(char* path,char mode) /*{{{*/
 {
 	if ((path[0]=='\0')||(mode=='\0'))
@@ -1693,3 +1694,14 @@ int clearbit(char *buf, int BIT) { /*{{{*/
 	buf[i] &= ~(1 << j);
 	return 1;
 } /*}}}*/
+
+void my_cat(char *filename)
+{
+	int catfd = open_file(filename, '0');
+	char fbuff[1024], dummy =0;
+	int n=0;
+	while( (n=myread(catfd, fbuff, 1024))){
+		fbuff[n]=0;
+		printf("%s", fbuff);
+	}
+}
