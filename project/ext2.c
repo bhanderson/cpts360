@@ -1110,6 +1110,7 @@ int chown_file(char* path,char* scndpath)
     MINODE* mip = iget(fd,ino);
     mip->INODE.i_uid = newuid;
     mip->dirty = 1;
+	return 0;
 }
 int creat_file(char *path) /*{{{*/
 {
