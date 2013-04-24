@@ -65,10 +65,10 @@ int main(int argc, const char *argv[])
 				read_file(tmp2,tmp3);
 				break;
 			case 12:
-//				write_file();
+				write_file();
 				break;
 			case 13:
-//				cat_file();
+				my_cat(path);
 				break;
 			case 14:
 //				cp_file();

@@ -24,3 +24,6 @@ obj\
 *.exe
 *.out
 *.app
+
+# ctags
+tags
