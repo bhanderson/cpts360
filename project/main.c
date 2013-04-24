@@ -75,7 +75,7 @@ int main(int argc, const char *argv[])
 				mycp(path,scndpath);
 				break;
 			case 15:
-				//				mv_file();
+				mymv(path, scndpath);
 				break;
 			case 16:
 				pfd();
