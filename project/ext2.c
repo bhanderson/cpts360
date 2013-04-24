@@ -2022,7 +2022,7 @@ void mycp(char *src, char *dest){ /*{{{*/
 	return;
 } /*}}}*/
 
-void mymv(char *src, char *dest){
+void mymv(char *src, char *dest){ /*{{{*/
 	int srcfd = open_file(src, '0');
 //	int destino = creat_file(dest);
 //	int destfd = open_file(dest, '1');
@@ -2039,4 +2039,4 @@ void mymv(char *src, char *dest){
 		do_unlink(src);
 	}
 	return;
-}
+} /*}}}*/
