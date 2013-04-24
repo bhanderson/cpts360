@@ -1304,7 +1304,7 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 	mip->INODE.i_mode=0x81A4;
 	mip->INODE.i_uid=running->uid;
 	mip->INODE.i_gid=running->gid;
-	mip->INODE.i_size=1024;
+	mip->INODE.i_size=0;
 	mip->INODE.i_links_count=0;
 	mip->INODE.i_atime=mip->INODE.i_ctime=mip->INODE.i_mtime = time(0L);
 	mip->INODE.i_blocks=2;
@@ -1814,6 +1814,8 @@ int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 			
 		}
 		get_block(mip->dev, blk, wbuf);
+		if(wbuf[0]==0)
+			memset(wbuf, 1024, 0);
 		cp = wbuf + startByte;
 		remain = BLOCK_SIZE - startByte;
 
@@ -1842,6 +1844,7 @@ void mycp(char *src, char *dest){
 	int srcfd = open_file(src, '0');
 	int n;
 	char cpbuf[1024];
+	memset(cpbuf, 0,1024);
 	if(srcfd == -1)
 		return;
 	int destino = creat_file(dest);
@@ -1854,7 +1857,7 @@ void mycp(char *src, char *dest){
 		memcpy(cpbuf, buff, n);
 		mywrite(gd, cpbuf, n);
 	}
-	close(gd);
-	close(srcfd);
+	close_file(gd);
+	close_file(srcfd);
 	return;
 }
