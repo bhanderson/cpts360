@@ -12,7 +12,6 @@ char buff[BLOCK_SIZE];
 char read_buff[BLOCK_SIZE]; // A special buff for reads
 
 
-
 void init() /*{{{*/
 {
 	int i;
@@ -1279,22 +1278,6 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 	// write the . and .. entries into buff
 	memset(buff, 0, 1024);
 
-	//	dp = (DIR *)buff;
-	//	dp->inode = inumber;
-	//	strncpy(dp->name, ".", 1);
-	//	dp->name_len = 1;
-	//	dp->rec_len = 12;
-
-	//	cp = buff;
-	//	cp += dp->rec_len;
-	//	dp = (DIR *)cp;
-
-	//	dp->inode = pip->ino;
-	//	dp->name_len = 2;
-	//	strncpy(dp->name, "..", 2);
-	//	dp->rec_len = BLOCK_SIZE - 12;
-	//	put_block(dev, bnumber, buff);
-
 	lseek(dev, pip->INODE.i_block[0]*BLOCK_SIZE, SEEK_SET );
 	read(fd, buff, BLOCK_SIZE);
 
@@ -1711,7 +1694,7 @@ int write_file()
 {
 	int writefd;
 	char line[128];
-	char string[1024]
+	char string[1024];
 	printf("syntax [fd] [string] ");
 	fgets(line ,128, stdin);
 	line[strlen(line)-1]=0;
@@ -1720,6 +1703,54 @@ int write_file()
 		printf("error: fd not open for write\n");
 		return -1;
 	}
+	int nbytes = strlen(string);
+	return(mywrite(writefd, &string, nbytes));
 
+}
 
+int mywrite(int fd, char *wbuf, int nbytes)
+{
+	long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
+	long lbk, startByte, blk;
+	int count = 0, remain=0;
+	char *cp, *cq;
+	OFT *oftp = running->fd[fd];
+	MINODE *mip = running->fd[fd]->minodeptr;
+	cq = (char *)wbuf;
+
+	while(nbytes > 0){
+        lbk = oftp->offset / BLOCK_SIZE;
+        startByte = oftp->offset % BLOCK_SIZE;
+        if(lbk < 12){
+            if(mip->INODE.i_block[lbk] == 0) // no data block yet
+                mip->INODE.i_block[lbk] = balloc(mip->dev);
+            blk = mip->INODE.i_block[lbk];
+        } else if(lbk >= 12 && lbk < 256+12){
+            // indirect blocks
+        }else{
+            // double indirect blocks
+        }
+        get_block(mip->dev, blk, wbuf);
+        cp = wbuf + startByte;
+        remain = BLOCK_SIZE - startByte;
+
+        while (remain > 0){
+            *cp++ = *cq++;
+            nbytes--;
+            remain--;
+            oftp->offset++;
+            if(oftp->offset > mip->INODE.i_size)
+                mip->INODE.i_size++;
+
+            if(nbytes <=0)
+                break;
+        }
+        put_block(mip->dev, blk, wbuf);
+
+	}
+
+	mip->dirty = 1;
+
+	printf("write %d char into file fd=%d\n",nbytes, fd);
+	return nbytes;
 }
