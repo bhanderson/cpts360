@@ -2041,3 +2041,35 @@ void mymv(char *src, char *dest){ /*{{{*/
 	}
 	return;
 } /*}}}*/
+
+void menu()
+{
+	printf(
+			"mkdir: [path]\n"
+			"cat: [path]\n"
+			"cd: [path]\n"
+			"chmod: [path]\n"
+			"chown: [path] [uid]\n"
+			"close: [fd]\n"
+			"cp: [src] [dest]\n"
+			"creat: [path]\n"
+			"link: [src] [dest]\n"
+			"ls: [path]\n"
+			"lseek: [fd] [nbytes]\n"
+			"menu: [no args]\n"
+			"mv: [src] [dest]\n"
+			"open: [path] [mode]\n"
+			"pfd: [no args]\n"
+			"pwd: [no args]\n"
+			"read: [fd] [nbytes]\n"
+			"rmdir: [path]\n"
+			"rm: [path]\n"
+			"stat: [path]\n"
+			"symlink: [src] [dest]\n"
+			"touch: [path]\n"
+			"unlink: [path]\n"
+			"write: [fd]\n"
+			"exit: [no args]\n"
+			);
+
+}

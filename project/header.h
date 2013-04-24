@@ -56,6 +56,7 @@ int mywrite(int fd, char *writebuff, int nbytes);
 int do_unlink(char* path);
 void mycp(char *src, char *dest);
 void mymv(char *src, char *dest);
+void menu();
 
 extern PROC *running;
 extern PROC *p0;
