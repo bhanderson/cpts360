@@ -1273,12 +1273,7 @@ int read_file(int fd, long bytes) /*{{{*/
 	}
 	return myread(fd,read_buff,bytes);
 } /*}}}*/
-
-
-
 // reads nbtytes from a file specified by fd in to buffer mbuff
-
-
 int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 {
 	int flag = 0;
@@ -1748,7 +1743,6 @@ int rm_file(char* path) /*{{{*/
 	return 0;
 } /*}}}*/
 
-
 /* deletes an empty folder */
 int do_rmdir(char* path) /*{{{*/
 {
@@ -1896,6 +1890,7 @@ void my_cat(char *filename) /*{{{*/
 		read_buff[n]=0;
 		printf("%s", read_buff);
 	}
+	printf("\n");
 	close_file(catfd);
 } /*}}}*/
 
@@ -1903,7 +1898,7 @@ int write_file(char *pfd, char *pstring) /*{{{*/
 {
 	int writefd = pfd[0] - 48;
 	if (writefd<0||writefd>9) {
-		printf("you done goofed syntax: write [fd#]");
+		printf("you done goofed syntax: write [fd#]\n");
 		return -1;
 	}
 	char string[1024];
@@ -1991,7 +1986,28 @@ int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 	}
 
 	mip->dirty = 1;
-
+	iput(mip);
 	printf("write %d char into file fd=%d\n",nbytes, fd);
 	return nbytes;
 } /*}}}*/
+
+void mycp(char *src, char *dest){
+	int srcfd = open_file(src, '0');
+	int n;
+	char cpbuf[1024];
+	if(srcfd == -1)
+		return;
+	int destino = creat_file(dest);
+//	if(destino==-1)
+//		return;
+	int gd = open_file(dest, '1');
+	if(gd ==-1)
+		return;
+	while( (n=myread(srcfd, cpbuf, 1024) ) ){
+		memcpy(cpbuf, buff, n);
+		mywrite(gd, cpbuf, n);
+	}
+	close(gd);
+	close(srcfd);
+	return;
+}
