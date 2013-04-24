@@ -1504,12 +1504,17 @@ int do_unlink(char* path) /*{{{*/
 	if (targetip->INODE.i_links_count == 0)
 	{
 	    do_truncate(fd,targetip);
+        targetip->refCount++;
+        targetip->dirty=1;
+        iput(targetip);
+        idealloc(fd,targetip->ino);
+
+	}
+	else
+	{
+	    iput(targetip);
 	}
 	//increment refcount?
-	targetip->refCount++;
-	targetip->dirty=1;
-	iput(targetip);
-	idealloc(fd,targetip->ino);
 
 	return deleteChild(pip,name);
 
@@ -1650,6 +1655,8 @@ int do_link(char* oldpath,char* newpath) /*{{{*/
     //	pip->INODE.i_links_count++;
     pip->INODE.i_atime = time(0);
     iput(pip);
+    targetip->INODE.i_links_count++;
+    iput(targetip);
     return targetip->ino;
 
 
@@ -2022,7 +2029,7 @@ void mymv(char *src, char *dest){
 	if(srcfd == -1)
 		return;
 	MINODE *smip = running->fd[srcfd]->minodeptr;
-	
+
 	if(smip->dev == fd){//same dev as src
 		do_link(src,dest);
 		do_unlink(src);
