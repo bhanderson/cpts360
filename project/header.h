@@ -54,6 +54,7 @@ void my_cat(char *filename);
 int write_file();
 int mywrite(int fd, char *writebuff, int nbytes);
 int do_unlink(char* path);
+void mycp(char *src, char *dest);
 
 extern PROC *running;
 extern PROC *p0;

@@ -15,6 +15,7 @@ int main(int argc, const char *argv[])
 	mount_root(line);
 
 	while(1){
+		line[0]=0;
 		printf("input command: ");
 		fgets(line, 128, stdin);
 		line[strlen(line)-1] = 0; // kill \r char at end
@@ -71,7 +72,8 @@ int main(int argc, const char *argv[])
 				my_cat(path);
 				break;
 			case 14:
-//				cp_file();
+				mycp(path,scndpath);
+				command[0]=0;
 				break;
 			case 15:
 //				mv_file();
