@@ -154,6 +154,7 @@ unsigned long getino(int dev, char *pathname) /*{{{*/
 
 	if(pathname[0] == '/'){
 		strncpy(path, path+1, 127); // remove root symbol
+        inodeIndex = 2;
 		token = strtok(path, "/");
 		//cwd = &root->INODE;
 		memcpy(cwd, &root->INODE, sizeof(INODE));
