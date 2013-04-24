@@ -322,6 +322,11 @@ int make_dir(char* path) /*{{{*/
 
 int my_mkdir(MINODE *pip, char *name) /*{{{*/
 {
+    if (search(&pip->INODE,name)!= 0)
+    {
+        printf("Error: That filename already exists\n");
+        return -1;
+    }
 	int inumber, bnumber, dev,i ;
 	char *cp;
 	MINODE *mip;
@@ -1046,6 +1051,12 @@ int creat_file(char *path) /*{{{*/
 	ino = getino(dev, parent);
 	pip = iget(dev, ino);
 
+	if (search(&pip->INODE,child)!= 0)
+    {
+        printf("Error: That filename already exists\n");
+        return -1;
+    }
+
 	r = my_creat_file(pip,child);
 
 	return r;
@@ -1403,8 +1414,8 @@ int do_unlink(char* path) /*{{{*/
  */
 int do_link(char* oldpath,char* newpath) /*{{{*/
 {
-	//check for user error
 
+	//check for user error
 	if ((oldpath[0]=='\0')||(newpath[0]=='\0')){
 		printf("Syntax: link [oldpath] [newpath]\n");
 		return -1;
@@ -1435,6 +1446,11 @@ int do_link(char* oldpath,char* newpath) /*{{{*/
 	}
 	//get the parent inode
 	pip = iget(fd,parent);
+    if (search(&pip->INODE,name)!= 0)
+    {
+        printf("Error: That filename already exists\n");
+        return -1;
+    }
 	targetip = iget(fd,target);
 	//check to make sure its not a dir
 	if((targetip->INODE.i_mode & 0100000) != 0100000){
