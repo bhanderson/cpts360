@@ -53,6 +53,7 @@ int read_file(int fd, long bytes);
 void my_cat(char *filename);
 int write_file();
 int mywrite(int fd, char *writebuff, int nbytes);
+int do_unlink(char* path);
 
 extern PROC *running;
 extern PROC *p0;

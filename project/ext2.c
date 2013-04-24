@@ -515,7 +515,7 @@ void deallocateInodeDataBlocks(int dev, MINODE* mip) /*{{{*/
 	{
 		indblk = mip->INODE.i_block[i];
 		get_block(dev,indblk,buff);
-		indirect = buff;
+		indirect = (unsigned long *)buff;
 		for (i=0;i<256;i++)
 		{
 			if(*indirect != 0)
@@ -544,12 +544,12 @@ void deallocateInodeDataBlocks(int dev, MINODE* mip) /*{{{*/
 	{
 		dblindblk = mip->INODE.i_block[13];
 		get_block(dev,dblindblk,dblindbuff);
-		doubleindirect = dblindbuff;
+		doubleindirect = (unsigned long *)dblindbuff;
 		for (i=0;i<256;i++)
 		{
 			indblk = *doubleindirect;
 			get_block(dev,indblk,buff);
-			indirect = buff;
+			indirect = (unsigned long *)buff;
 			for (j=0;j<256;j++)
 			{
 				if(*indirect != 0)
@@ -861,6 +861,7 @@ int pfd() /*{{{*/
 			printf("%li\n",running->fd[i]->offset);
 		}
 	}
+	return 0;
 } /*}}}*/
 
 //prints the path to the current file
@@ -900,7 +901,7 @@ int printfilepath(MINODE* mip) /*{{{*/
 
 		}
 	}
-
+	return 0;
 } /*}}}*/
 //Recusive depth first search function to find the parent
 //THIS IS BAD, THERE MUST BE A BETTER WAY
@@ -1128,7 +1129,7 @@ int open_file(char* path,char mode) /*{{{*/
 			return -1;
 	}
 	mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
-	mip->dirty;
+	mip->dirty = 1;
 	return index;
 
 
@@ -1222,13 +1223,13 @@ int read_file(int fd, long bytes) /*{{{*/
 
 int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 {
-    int flag = 0;
-    int doubleflag = 0;
-    char indir_buff[1024],dblindir_buff[1024];
-    long * indirect;
-    long * dblindirect;
-    long superflag = 0;
-    long indblk,dblindblk;
+	int flag = 0;
+	int doubleflag = 0;
+	char indir_buff[1024],dblindir_buff[1024];
+	long * indirect;
+	long * dblindirect;
+	long superflag = 0;
+	long indblk,dblindblk;
 	long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
 	long lblk,startByte,blk;
 	int count = 0;
@@ -1242,30 +1243,30 @@ int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 		}
 		else if ((lblk >= 12)&&(lblk<256+12))
 		{
-            if (!flag)//we dont want to get_block for every time we switch lblks, that would be dumb
-            {
-                get_block(running->fd[fd]->minodeptr->dev,running->fd[fd]->minodeptr->INODE.i_block[13],indir_buff);
-                flag = 1;
-            }
-            indirect = buff;
-            blk = *(indirect+(lblk-12));
+			if (!flag)//we dont want to get_block for every time we switch lblks, that would be dumb
+			{
+				get_block(running->fd[fd]->minodeptr->dev,running->fd[fd]->minodeptr->INODE.i_block[13],indir_buff);
+				flag = 1;
+			}
+			indirect = (long *)buff;
+			blk = *(indirect+(lblk-12));
 
 		}
 		else
 		{
-            if (!doubleflag)
-            {
-                get_block(running->fd[fd]->minodeptr->dev,running->fd[fd]->minodeptr->INODE.i_block[14],dblindir_buff);
-                doubleflag = 1;
-            }
-            dblindirect = dblindir_buff;
-            if (superflag != *(dblindirect+((lblk-268) /256)))
-            {
-                superflag = *(dblindirect+((lblk-268) /256));
-                get_block(running->fd[fd]->minodeptr->dev,superflag,indir_buff);
-            }
-            indirect = buff;
-            blk = *(indirect+((lblk-268)%256));
+			if (!doubleflag)
+			{
+				get_block(running->fd[fd]->minodeptr->dev,running->fd[fd]->minodeptr->INODE.i_block[14],dblindir_buff);
+				doubleflag = 1;
+			}
+			dblindirect = (long *)dblindir_buff;
+			if (superflag != *(dblindirect+((lblk-268) /256)))
+			{
+				superflag = *(dblindirect+((lblk-268) /256));
+				get_block(running->fd[fd]->minodeptr->dev,superflag,indir_buff);
+			}
+			indirect = (long *)buff;
+			blk = *(indirect+((lblk-268)%256));
 		}
 		get_block(running->fd[fd]->minodeptr->dev,blk,read_buff);
 		char *cq = buff;
@@ -1591,7 +1592,7 @@ int rm_file(char* path) /*{{{*/
 	iput(targetip);
 	idealloc(fd,targetip->ino);
 	deleteChild(pip,name);
-
+	return 0;
 } /*}}}*/
 
 
@@ -1652,7 +1653,7 @@ int do_rmdir(char* path) /*{{{*/
 	deleteChild(pip,name);
 
 
-
+	return 0;
 } /*}}}*/
 
 /* Deletes the child of a minode with name name */
@@ -1696,14 +1697,14 @@ int deleteChild(MINODE* pip,char* name){ /*{{{*/
 				break;
 			}
 		}
-		last = cp;
+		last = (int)cp;
 		i += dp->rec_len;
 		cp += dp->rec_len;
 		dp = (DIR *)cp;
 	}
 	put_block(fd,pip->INODE.i_block[0],buff);
 
-
+	return 0;
 } /*}}}*/
 
 int tstbit(char *buf, int BIT) { /*{{{*/
@@ -1757,9 +1758,9 @@ int write_file(char *pfd, char *pstring) /*{{{*/
 	fgets(string, 1024, stdin);
 	string[strlen(string)-1]=0;
 
-//	strncpy(string, pstring, strlen(pstring));
-//	string[strlen(pstring)]=0;
-//	memcpy(string, pstring, strlen(pstring));
+	//	strncpy(string, pstring, strlen(pstring));
+	//	string[strlen(pstring)]=0;
+	//	memcpy(string, pstring, strlen(pstring));
 	if(running->fd[writefd]->mode == 0){
 		printf("error: fd not open for write\n");
 		return -1;
@@ -1772,6 +1773,13 @@ int write_file(char *pfd, char *pstring) /*{{{*/
 int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 {
 	char wbuf[1024];
+	int flag =0;
+	int doubleflag = 0;
+	char indir_buff[1024], dblindir_buff[1024];
+	long *indirect;
+	long *dblindirect;
+	long superflag =0;
+	long indblk, dblindblk;
 	long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
 	long lbk, startByte, blk;
 	int count = 0, remain=0;
@@ -1781,33 +1789,51 @@ int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 	cq = (char *)fbuf;
 
 	while(nbytes > 0){
-        lbk = oftp->offset / BLOCK_SIZE;
-        startByte = oftp->offset % BLOCK_SIZE;
-        if(lbk < 12){
-            if(mip->INODE.i_block[lbk] == 0) // no data block yet
-                mip->INODE.i_block[lbk] = balloc(mip->dev);
-            blk = mip->INODE.i_block[lbk];
-        } else if(lbk >= 12 && lbk < 256+12){
-            // indirect blocks
-        }else{
-            // double indirect blocks
-        }
-        get_block(mip->dev, blk, wbuf);
-        cp = wbuf + startByte;
-        remain = BLOCK_SIZE - startByte;
+		lbk = oftp->offset / BLOCK_SIZE;
+		startByte = oftp->offset % BLOCK_SIZE;
+		if(lbk < 12){
+			if(mip->INODE.i_block[lbk] == 0) // no data block yet
+				mip->INODE.i_block[lbk] = balloc(mip->dev);
+			blk = mip->INODE.i_block[lbk];
+		} else if(lbk >= 12 && lbk < 256+12){
+			if(!flag){
+				get_block(mip->dev,mip->INODE.i_block[13],indir_buff);
+				flag = 1;
+			}
+			indirect = (long *)buff;
+			blk = *(indirect+(lbk-12));
 
-        while (remain > 0){
-            *cp++ = *cq++;
-            nbytes--;
-            remain--;
-            oftp->offset++;
-            if(oftp->offset > mip->INODE.i_size)
-                mip->INODE.i_size++;
+		}else{
+			// double indirect blocks
+			if(!doubleflag){
+				get_block(mip->dev,mip->INODE.i_block[14],dblindir_buff);
+				doubleflag =1;
+			}
+			dblindirect = (long *)dblindir_buff;
+			if(superflag != *(dblindirect+((lbk-268) /256))){
+				superflag = *(dblindirect+((lbk-268) /256));
+				get_block(mip->dev,superflag,indir_buff);
+			}
+			indirect = (long *)buff;
+			blk = *(indirect+((lbk-268)%256));
+			
+		}
+		get_block(mip->dev, blk, wbuf);
+		cp = wbuf + startByte;
+		remain = BLOCK_SIZE - startByte;
 
-            if(nbytes <=0)
-                break;
-        }
-        put_block(mip->dev, blk, wbuf);
+		while (remain > 0){
+			*cp++ = *cq++;
+			nbytes--;
+			remain--;
+			oftp->offset++;
+			if(oftp->offset > mip->INODE.i_size)
+				mip->INODE.i_size++;
+
+			if(nbytes <=0)
+				break;
+		}
+		put_block(mip->dev, blk, wbuf);
 
 	}
 
