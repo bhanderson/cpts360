@@ -112,8 +112,8 @@ void iput(MINODE *mip) /*{{{*/
 		return;
 	if(mip->dirty == 0)
 		return;
-	else
-		block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
+
+    block = (mip->ino - 1) / INODES_PER_BLOCK + gp->bg_inode_table;
 	pos = (mip->ino - 1) % INODES_PER_BLOCK;
 
 	itmp = ( (INODE *)buff + pos);
@@ -389,25 +389,78 @@ int my_mkdir(MINODE *pip, char *name) /*{{{*/
 	// storing the lenght of the new last dir
 	int tmp = dp->rec_len - need_length;
 	// change last dir rec_len to needed length
-	dp->rec_len = need_length;
+	if (tmp>=need_length) //check to see if we need to allocate another data block
+	{
 
-	cp += dp->rec_len;
-	dp = (DIR *)cp;
+        // change last dir rec_len to needed length
+        dp->rec_len = need_length;
 
-	dp->rec_len = tmp;
-	dp->name_len = strlen(name);
-	dp->inode = mip->ino;
-	strncpy(dp->name, name, strlen(name));
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
 
-	put_block(dev, pip->INODE.i_block[0], buff);
+        dp->rec_len = tmp;
+        dp->name_len = strlen(name);
+        dp->inode = mip->ino;
+        strncpy(dp->name, name, strlen(name));
 
+        put_block(dev, pip->INODE.i_block[0], buff);
+
+
+	}
+	else
+	{
+	    i = 0;
+	    while (tmp<need_length){
+	        i++;
+            if (pip->INODE.i_block[i]==0)
+            {
+                pip->INODE.i_block[i]=balloc(dev);
+                pip->refCount = 0;
+                tmp = 1024;
+                memset(buff, 0, 1024);
+                cp = buff;
+                dp = (DIR *) buff;
+            }
+            else{
+                get_block(dev,pip->INODE.i_block[i],buff);
+                cp = buff;
+                dp = (DIR *) buff;
+
+                while(cp+dp->rec_len < buff +1024)
+                {
+                    cp += dp->rec_len;
+                    dp = (DIR *)cp;
+                }
+                // calculate size of last item in cwd to reduce rec_len
+                need_length = 4*((8+dp->name_len+3)/4);
+                // storing the lenght of the new last dir
+                tmp = dp->rec_len - need_length;
+                if (tmp>=need_length)
+                {
+                    dp->rec_len = need_length;
+                    cp += dp->rec_len;
+                    dp = (DIR *)cp;
+                }
+
+            }
+	    }
+
+
+        dp->rec_len = tmp;
+        dp->name_len = strlen(name);
+        dp->inode = mip->ino;
+        strncpy(dp->name, name, strlen(name));
+
+
+        put_block(dev, pip->INODE.i_block[i], buff);
+
+    }
 	pip->dirty = 1;
-	pip->refCount++;
-	pip->INODE.i_links_count++;
-	pip->INODE.i_atime = time(0);
-	iput(pip);
-	return 0;
-
+    pip->refCount++;
+    //	pip->INODE.i_links_count++;
+    pip->INODE.i_atime = time(0);
+    iput(pip);
+    return mip->ino;
 
 } /*}}}*/
 
@@ -705,57 +758,62 @@ void ls(char *pathname, PROC *parent) /*{{{*/
 
 void printdir(INODE *inodePtr) /*{{{*/
 {
-	int	data_block=inodePtr->i_block[0];
-	DIR *dp;
-	char fbuff[1024];
-	memset(fbuff, 0, 1024);
-	lseek(fd,BLOCK_SIZE*data_block,SEEK_SET);
-	read(fd,fbuff,BLOCK_SIZE);
-	dp=(DIR *)fbuff;
-	char *cp=fbuff;
-	MINODE *mip;
-	int ino = dp->inode;
-	char name[256];
-	while(cp<fbuff+1024)
-	{
-		mip = iget(fd, ino);
-		if(S_ISREG( mip->INODE.i_mode ) ) printf("r");
-		if(S_ISDIR( mip->INODE.i_mode ) ) printf("d");
-		if(S_ISLNK( mip->INODE.i_mode ) ) printf("l");
-		//		printf("\n");
-		// user permissions
-		printf((mip->INODE.i_mode & 1 << 8) ? "r" : "-");
-		printf((mip->INODE.i_mode & 1 << 7) ? "w" : "-");
-		printf((mip->INODE.i_mode & 1 << 6) ? "x" : "-");
-		// group permissions
-		printf((mip->INODE.i_mode & 1 << 5) ? "r" : "-");
-		printf((mip->INODE.i_mode & 1 << 4) ? "w" : "-");
-		printf((mip->INODE.i_mode & 1 << 3) ? "x" : "-");
-		// other permissions
-		printf((mip->INODE.i_mode & 1 << 2) ? "r" : "-");
-		printf((mip->INODE.i_mode & 1 << 1) ? "w" : "-");
-		printf((mip->INODE.i_mode & 1 << 0) ? "x" : "-");
-		char time_s[64];
-		//char *time = time_s;
-		//const time_t *t = (unsigned int)&mip->INODE.i_ctime;
-		ctime_r((time_t *)&mip->INODE.i_mtime, time_s);
-		time_s[strlen(time_s)-1]=0;
-		printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
-				mip->INODE.i_gid, mip->INODE.i_size, time_s);
-		//		char name[dp->name_len+1];
-		memmove(name, dp->name, dp->name_len);
-		//		memcpy(name,dp->name,dp->name_len);
-		name[dp->name_len]='\0';
-		if(S_ISLNK( mip->INODE.i_mode)){
-			printf("%16s->%s\n",name,(char *)mip->INODE.i_block);
-		}else{
-			printf("%16s\n",name);
-		}
-		iput(mip);
-		cp+=dp->rec_len;
-		dp=(DIR *)cp;
-		ino = dp->inode;
-	}
+    int i=0;
+    while ((i <12)&&(inodePtr->i_block[i]!=0))
+    {
+        int	data_block=inodePtr->i_block[i];
+        DIR *dp;
+        char fbuff[1024];
+        memset(fbuff, 0, 1024);
+        lseek(fd,BLOCK_SIZE*data_block,SEEK_SET);
+        read(fd,fbuff,BLOCK_SIZE);
+        dp=(DIR *)fbuff;
+        char *cp=fbuff;
+        MINODE *mip;
+        int ino = dp->inode;
+        char name[256];
+        while(cp<fbuff+1024)
+        {
+            mip = iget(fd, ino);
+            if(S_ISREG( mip->INODE.i_mode ) ) printf("r");
+            if(S_ISDIR( mip->INODE.i_mode ) ) printf("d");
+            if(S_ISLNK( mip->INODE.i_mode ) ) printf("l");
+            //		printf("\n");
+            // user permissions
+            printf((mip->INODE.i_mode & 1 << 8) ? "r" : "-");
+            printf((mip->INODE.i_mode & 1 << 7) ? "w" : "-");
+            printf((mip->INODE.i_mode & 1 << 6) ? "x" : "-");
+            // group permissions
+            printf((mip->INODE.i_mode & 1 << 5) ? "r" : "-");
+            printf((mip->INODE.i_mode & 1 << 4) ? "w" : "-");
+            printf((mip->INODE.i_mode & 1 << 3) ? "x" : "-");
+            // other permissions
+            printf((mip->INODE.i_mode & 1 << 2) ? "r" : "-");
+            printf((mip->INODE.i_mode & 1 << 1) ? "w" : "-");
+            printf((mip->INODE.i_mode & 1 << 0) ? "x" : "-");
+            char time_s[64];
+            //char *time = time_s;
+            //const time_t *t = (unsigned int)&mip->INODE.i_ctime;
+            ctime_r((time_t *)&mip->INODE.i_mtime, time_s);
+            time_s[strlen(time_s)-1]=0;
+            printf(" %3d%3d %3d%6d %20s ", dp->inode, mip->INODE.i_uid,
+                    mip->INODE.i_gid, mip->INODE.i_size, time_s);
+            //		char name[dp->name_len+1];
+            memmove(name, dp->name, dp->name_len);
+            //		memcpy(name,dp->name,dp->name_len);
+            name[dp->name_len]='\0';
+            if(S_ISLNK( mip->INODE.i_mode)){
+                printf("%16s->%s\n",name,(char *)mip->INODE.i_block);
+            }else{
+                printf("%16s\n",name);
+            }
+            iput(mip);
+            cp+=dp->rec_len;
+            dp=(DIR *)cp;
+            ino = dp->inode;
+        }
+        i++;
+    }
 	return;
 } /*}}}*/
 
@@ -1285,6 +1343,7 @@ int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 int my_creat_file(MINODE *pip, char *name) /*{{{*/
 {
 	int inumber, bnumber, dev,i ;
+	int flag = 0;
 	char *cp;
 	MINODE *mip;
 	DIR *dp;
@@ -1327,25 +1386,78 @@ int my_creat_file(MINODE *pip, char *name) /*{{{*/
 	int need_length = 4*((8+dp->name_len+3)/4);
 	// storing the lenght of the new last dir
 	int tmp = dp->rec_len - need_length;
-	// change last dir rec_len to needed length
-	dp->rec_len = need_length;
+	if (tmp>=need_length) //check to see if we need to allocate another data block
+	{
 
-	cp += dp->rec_len;
-	dp = (DIR *)cp;
+        // change last dir rec_len to needed length
+        dp->rec_len = need_length;
 
-	dp->rec_len = tmp;
-	dp->name_len = strlen(name);
-	dp->inode = mip->ino;
-	strncpy(dp->name, name, strlen(name));
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
 
-	put_block(dev, pip->INODE.i_block[0], buff);
+        dp->rec_len = tmp;
+        dp->name_len = strlen(name);
+        dp->inode = mip->ino;
+        strncpy(dp->name, name, strlen(name));
 
+        put_block(dev, pip->INODE.i_block[0], buff);
+
+
+	}
+	else
+	{
+	    i = 0;
+	    while (tmp<need_length){
+	        i++;
+            if (pip->INODE.i_block[i]==0)
+            {
+                pip->INODE.i_block[i]=balloc(dev);
+                pip->refCount = 0;
+                tmp = 1024;
+                memset(buff, 0, 1024);
+                cp = buff;
+                dp = (DIR *) buff;
+            }
+            else{
+                get_block(dev,pip->INODE.i_block[i],buff);
+                cp = buff;
+                dp = (DIR *) buff;
+
+                while(cp+dp->rec_len < buff +1024)
+                {
+                    cp += dp->rec_len;
+                    dp = (DIR *)cp;
+                }
+                // calculate size of last item in cwd to reduce rec_len
+                need_length = 4*((8+dp->name_len+3)/4);
+                // storing the lenght of the new last dir
+                tmp = dp->rec_len - need_length;
+                if (tmp>=need_length)
+                {
+                    dp->rec_len = need_length;
+                    cp += dp->rec_len;
+                    dp = (DIR *)cp;
+                }
+
+            }
+	    }
+
+
+        dp->rec_len = tmp;
+        dp->name_len = strlen(name);
+        dp->inode = mip->ino;
+        strncpy(dp->name, name, strlen(name));
+
+
+        put_block(dev, pip->INODE.i_block[i], buff);
+
+    }
 	pip->dirty = 1;
-	pip->refCount++;
-	//	pip->INODE.i_links_count++;
-	pip->INODE.i_atime = time(0);
-	iput(pip);
-	return mip->ino;
+    pip->refCount++;
+    //	pip->INODE.i_links_count++;
+    pip->INODE.i_atime = time(0);
+    iput(pip);
+    return mip->ino;
 
 
 } /*}}}*/
@@ -1410,7 +1522,7 @@ int do_unlink(char* path) /*{{{*/
  */
 int do_link(char* oldpath,char* newpath) /*{{{*/
 {
-
+    int i;
 	//check for user error
 	if ((oldpath[0]=='\0')||(newpath[0]=='\0')){
 		printf("Syntax: link [oldpath] [newpath]\n");
@@ -1467,37 +1579,78 @@ int do_link(char* oldpath,char* newpath) /*{{{*/
 	int need_length = 4*((8+dp->name_len+3)/4);
 	// storing the lenght of the new last dir
 	int tmp = dp->rec_len - need_length;
-	// change last dir rec_len to needed length
-	dp->rec_len = need_length;
+	if (tmp>=need_length) //check to see if we need to allocate another data block
+	{
 
-	cp += dp->rec_len;
-	dp = (DIR *)cp;
+        // change last dir rec_len to needed length
+        dp->rec_len = need_length;
 
-	dp->rec_len = tmp;
-	dp->name_len = strlen(name);
-	dp->inode = target;
-	strncpy(dp->name, name, strlen(name));
+        cp += dp->rec_len;
+        dp = (DIR *)cp;
 
-	put_block(fd, pip->INODE.i_block[0], buff);
+        dp->rec_len = tmp;
+        dp->name_len = strlen(name);
+        dp->inode =targetip->ino;
+        strncpy(dp->name, name, strlen(name));
 
+        put_block(fd, pip->INODE.i_block[0], buff);
+
+
+	}
+	else
+	{
+	    i = 0;
+	    while (tmp<need_length){
+	        i++;
+            if (pip->INODE.i_block[i]==0)
+            {
+                pip->INODE.i_block[i]=balloc(fd);
+                pip->refCount = 0;
+                tmp = 1024;
+                memset(buff, 0, 1024);
+                cp = buff;
+                dp = (DIR *) buff;
+            }
+            else{
+                get_block(fd,pip->INODE.i_block[i],buff);
+                cp = buff;
+                dp = (DIR *) buff;
+
+                while(cp+dp->rec_len < buff +1024)
+                {
+                    cp += dp->rec_len;
+                    dp = (DIR *)cp;
+                }
+                // calculate size of last item in cwd to reduce rec_len
+                need_length = 4*((8+dp->name_len+3)/4);
+                // storing the lenght of the new last dir
+                tmp = dp->rec_len - need_length;
+                if (tmp>=need_length)
+                {
+                    dp->rec_len = need_length;
+                    cp += dp->rec_len;
+                    dp = (DIR *)cp;
+                }
+
+            }
+	    }
+
+
+        dp->rec_len = tmp;
+        dp->name_len = strlen(name);
+        dp->inode = targetip->ino;
+        strncpy(dp->name, name, strlen(name));
+
+
+        put_block(fd, pip->INODE.i_block[i], buff);
+
+    }
 	pip->dirty = 1;
-	pip->refCount++;
-	pip->INODE.i_links_count++;
-	pip->INODE.i_atime = time(0);
-
-	iput(pip);
-	//now to adjust the inode of the target
-
-
-	targetip->dirty = 1;
-	targetip->refCount++;
-	targetip->INODE.i_links_count++;
-	iput(targetip);
-
-
-
-
-	return 0;
+    pip->refCount++;
+    //	pip->INODE.i_links_count++;
+    pip->INODE.i_atime = time(0);
+    iput(pip);
+    return targetip->ino;
 
 
 } /*}}}*/
@@ -1811,7 +1964,7 @@ int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 			}
 			indirect = (long *)buff;
 			blk = *(indirect+((lbk-268)%256));
-			
+
 		}
 		get_block(mip->dev, blk, wbuf);
 		if(wbuf[0]==0)
