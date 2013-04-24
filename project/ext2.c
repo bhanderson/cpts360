@@ -1147,7 +1147,6 @@ int lseek_file(int fd, long position) /*{{{*/
 	return original;
 } /*}}}*/
 
-
 //closes a file with the specified file descriptor
 int close_file(int fd) /*{{{*/
 {
@@ -1203,7 +1202,6 @@ int read_file(int fd, long bytes) /*{{{*/
 	}
 	return myread(fd,read_buff,bytes);
 } /*}}}*/
-
 
 // reads nbtytes from a file specified by fd in to buffer my buff
 
@@ -1546,7 +1544,6 @@ int rm_file(char* path) /*{{{*/
 
 } /*}}}*/
 
-
 /* deletes an empty folder */
 int do_rmdir(char* path) /*{{{*/
 {
@@ -1682,41 +1679,53 @@ int clearbit(char *buf, int BIT) { /*{{{*/
 void my_cat(char *filename) /*{{{*/
 {
 	int catfd = open_file(filename, '0');
+	if(catfd == -1){
+		printf("file is open already!!\n");
+		return;
+	}
 	char dummy =0;
 	int n=0;
 	while( (n=read_file(catfd, 1024))){
 		read_buff[n]=0;
 		printf("%s", read_buff);
 	}
+	close_file(catfd);
 } /*}}}*/
 
-int write_file()
+int write_file(char *pfd, char *pstring) /*{{{*/
 {
-	int writefd;
-	char line[128];
+	int writefd = pfd[0] - 48;
+	if (writefd<0||writefd>9) {
+		printf("you done goofed syntax: write [fd#]");
+		return -1;
+	}
 	char string[1024];
-	printf("syntax [fd] [string] ");
-	fgets(line ,128, stdin);
-	line[strlen(line)-1]=0;
-	sscanf(line, "%d %s", writefd, string);
+	printf("Enter the string you want to write: ");
+	fgets(string, 1024, stdin);
+	string[strlen(string)-1]=0;
+
+//	strncpy(string, pstring, strlen(pstring));
+//	string[strlen(pstring)]=0;
+//	memcpy(string, pstring, strlen(pstring));
 	if(running->fd[writefd]->mode == 0){
 		printf("error: fd not open for write\n");
 		return -1;
 	}
 	int nbytes = strlen(string);
-	return(mywrite(writefd, &string, nbytes));
+	return(mywrite(writefd, string, nbytes));
 
-}
+} /*}}}*/
 
-int mywrite(int fd, char *wbuf, int nbytes)
+int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 {
+	char wbuf[1024];
 	long size = running->fd[fd]->minodeptr->INODE.i_size - running->fd[fd]->offset;
 	long lbk, startByte, blk;
 	int count = 0, remain=0;
 	char *cp, *cq;
 	OFT *oftp = running->fd[fd];
 	MINODE *mip = running->fd[fd]->minodeptr;
-	cq = (char *)wbuf;
+	cq = (char *)fbuf;
 
 	while(nbytes > 0){
         lbk = oftp->offset / BLOCK_SIZE;
@@ -1753,4 +1762,4 @@ int mywrite(int fd, char *wbuf, int nbytes)
 
 	printf("write %d char into file fd=%d\n",nbytes, fd);
 	return nbytes;
-}
+} /*}}}*/
