@@ -1119,7 +1119,7 @@ int open_file(char* path,char mode) /*{{{*/
 	}
 	mip->INODE.i_atime = mip->INODE.i_mtime = time(0L);
 	mip->dirty;
-	return i;
+	return index;
 
 
 
@@ -1244,7 +1244,8 @@ int myread(int fd,char* m_buff,long nbytes) /*{{{*/
 				break;
 		}
 	}
-	printf("myread : read %d char from file %d\n", count,fd);
+	//printf("\nmyread : read %d char from file %d\n", count,fd);
+	return count;
 } /*}}}*/
 
 int my_creat_file(MINODE *pip, char *name) /*{{{*/
@@ -1695,13 +1696,14 @@ int clearbit(char *buf, int BIT) { /*{{{*/
 	return 1;
 } /*}}}*/
 
-void my_cat(char *filename)
+void my_cat(char *filename) /*{{{*/
 {
 	int catfd = open_file(filename, '0');
-	char fbuff[1024], dummy =0;
+	char dummy =0;
 	int n=0;
-	while( (n=myread(catfd, fbuff, 1024))){
-		fbuff[n]=0;
-		printf("%s", fbuff);
+	while( (n=read_file(catfd, 1024))){
+		read_buff[n]=0;
+		printf("%s", read_buff);
 	}
-}
+} /*}}}*/
+
