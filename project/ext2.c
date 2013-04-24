@@ -1382,11 +1382,15 @@ int do_unlink(char* path) /*{{{*/
 	}
 	//decrement the i links count by one
 	targetip->INODE.i_links_count--;
-	//TODO deallocate if the i_links_count <1
+	if (targetip->INODE.i_links_count == 0)
+	{
+	    do_truncate(fd,targetip);
+	}
 	//increment refcount?
 	targetip->refCount++;
 	targetip->dirty=1;
 	iput(targetip);
+	idealloc(fd,targetip->ino);
 
 	return deleteChild(pip,name);
 
@@ -1567,9 +1571,9 @@ int rm_file(char* path) /*{{{*/
 		printf("Error: cannot rm a non regular file\n");
 		return -1;
 	}
-	deallocateInodeDataBlocks(fd,targetip);
-	//TODO deallocate Inode
-
+	do_truncate(fd,targetip);
+	iput(targetip);
+	idealloc(fd,targetip->ino);
 	deleteChild(pip,name);
 
 } /*}}}*/
@@ -1623,7 +1627,9 @@ int do_rmdir(char* path) /*{{{*/
 		return -1;
 	}
 
-	deallocateInodeDataBlocks(fd,targetip);
+	do_truncate(fd,targetip);
+	iput(targetip);
+	idealloc(fd,targetip->ino);
 	//TODO Deallocate DIR Inode
 
 	//Then we have to delete the directory entry
