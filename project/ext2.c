@@ -1993,7 +1993,7 @@ int mywrite(int fd, char *fbuf, int nbytes) /*{{{*/
 	return nbytes;
 } /*}}}*/
 
-void mycp(char *src, char *dest){
+void mycp(char *src, char *dest){ /*{{{*/
 	int srcfd = open_file(src, '0');
 	int n;
 	char cpbuf[1024];
@@ -2012,5 +2012,24 @@ void mycp(char *src, char *dest){
 	}
 	close_file(gd);
 	close_file(srcfd);
+	return;
+} /*}}}*/
+
+void mymv(char *src, char *dest){
+	int srcfd = open_file(src, '0');
+//	int destino = creat_file(dest);
+//	int destfd = open_file(dest, '1');
+	if(srcfd == -1)
+		return;
+	MINODE *smip = running->fd[srcfd]->minodeptr;
+	
+	if(smip->dev == fd){//same dev as src
+		do_link(src,dest);
+		do_unlink(src);
+	}else{// not same dev
+		close_file(srcfd);
+		mycp(src,dest);
+		do_unlink(src);
+	}
 	return;
 }
